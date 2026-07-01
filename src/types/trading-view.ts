@@ -1,5 +1,6 @@
 import type { PositionSummary } from "@/types/dashboard";
 import type { RecentActivityItem } from "@/types/dashboard";
+import type { EodhdAssetQuote } from "@/types/eodhd";
 import type {
   TradingFilterBarAsset,
   TradingFilterBarOhlcv,
@@ -20,7 +21,9 @@ export type TradingChartProps = {
 export type LiveTradingViewProps = {
   symbol?: string;
   compareSymbol?: string | null;
-  interval?: string;
+  timeframe?: TradingTimeframe;
+  liveQuote?: EodhdAssetQuote | null;
+  className?: string;
   positions?: PositionSummary[];
   recentActivity?: RecentActivityItem[];
   filterAssets?: TradingFilterBarAsset[];

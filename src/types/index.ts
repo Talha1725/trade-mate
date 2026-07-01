@@ -27,6 +27,8 @@ export type * from "@/types/dashboard";
 export type * from "@/types/market";
 export type * from "@/types/asset";
 export type * from "@/types/wishlist";
+export type * from "@/types/eodhd";
+export type * from "@/types/lightweight-trading-chart";
 export type * from "@/types/price";
 export type * from "@/types/trading-view";
 export type * from "@/types/asset-icon";

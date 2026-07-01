@@ -9,16 +9,12 @@ import { MarketWatchCard } from "@/components/dashboard/market-watch-card";
 import { OpenPositionsStripCard } from "@/components/dashboard/open-positions-strip-card";
 import { TradingFilterBar } from "@/components/dashboard/trading-filter-bar";
 import { PageHeader } from "@/components/page-header";
-
 import { dashboardApi } from "@/lib/services/dashboard.api";
 import { marketApi } from "@/lib/services/market.api";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useMarketSelectionStore } from "@/lib/stores/market-selection-store";
 import { useSelectedAccountStore } from "@/lib/stores/account-store";
-import {
-  mapTimeframeToMarketInterval,
-  mapTimeframeToTradingViewInterval,
-} from "@/lib/utils/trading-view";
+import { mapTimeframeToMarketInterval } from "@/lib/utils/trading-view";
 import {
   buildDashboardData,
   mapPortfolioPositionToPortfolioRow,
@@ -213,7 +209,6 @@ export default function DashboardPage() {
     ? tradingAssets.find((asset) => asset.id === compareAssetId)
     : null;
   const compareSymbol = compareWatchlistItem?.symbol ?? compareFilterAsset?.symbol ?? null;
-  const chartInterval = mapTimeframeToTradingViewInterval(timeframe);
   const marketInterval = mapTimeframeToMarketInterval(timeframe);
 
   React.useEffect(() => {
@@ -548,13 +543,14 @@ export default function DashboardPage() {
             <LiveTradingView
               symbol={chartSymbol}
               compareSymbol={compareSymbol}
-              interval={chartInterval}
+              timeframe={timeframe}
             />
           </div>
 
           <div className="col-span-12 flex flex-col gap-6 xl:col-span-4">
             <MarketWatchCard
               items={liveWatchlistItems}
+              isLoading={isWishlistLoading}
               selectedItemId={selectedMarketId}
               onItemSelect={setSelectedMarketId}
               onWatchlistToggle={toggleWishlistAsset}

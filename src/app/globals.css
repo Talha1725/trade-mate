@@ -355,3 +355,19 @@ input:-webkit-autofill:active {
   transition: background-color 5000s ease-in-out 0s;
   -webkit-text-fill-color: white !important;
 }
+
+.tv-lightweight-charts,
+.v-lightweight-charts {
+  border-radius: 12px !important;
+  background: transparent !important;
+}
+
+.tv-lightweight-charts table,
+.tv-lightweight-charts td,
+.tv-lightweight-charts canvas {
+  background: transparent !important;
+}
+
+#tv-attr-logo{
+  display: none !important;
+}
