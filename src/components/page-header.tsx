@@ -254,15 +254,15 @@ export function PageHeader({
         </PlaceOrderDialog>
 
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-border/20 px-4 py-[9px] text-sm font-medium text-white outline-none transition-colors hover:bg-white/5 whitespace-nowrap">
+          <DropdownMenuTrigger className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-border/20 px-4 py-[9px] text-sm font-medium text-white outline-none transition-colors hover:bg-white/5 whitespace-nowrap lg:max-xl:size-10 lg:max-xl:px-0">
             <DownloadIcon className="size-4" />
-            <span>Desktop App</span>
+            <span className="lg:max-xl:hidden">Desktop App</span>
             {hasDesktopUpdate ? (
-              <span className="rounded-full border border-primary/30 bg-primary/15 px-2 py-0.5 text-[10px] font-semibold leading-none text-primary">
+              <span className="rounded-full border border-primary/30 bg-primary/15 px-2 py-0.5 text-[10px] font-semibold leading-none text-primary lg:max-xl:hidden">
                 v{desktopRelease?.version}
               </span>
             ) : null}
-            <ChevronDown className="size-4 text-white/70" />
+            <ChevronDown className="size-4 text-white/70 lg:max-xl:hidden" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuGroup>
@@ -310,7 +310,7 @@ export function PageHeader({
                 {userInitials}
               </AvatarFallback>
             </Avatar>
-            <span className="text-sm">{userName}</span>
+            <span className="text-sm lg:max-xl:hidden">{userName}</span>
             <ChevronDown className="size-4 text-white" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-40">

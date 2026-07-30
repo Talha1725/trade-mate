@@ -178,13 +178,13 @@ export function TradingFilterBar({
     >
 
 
-      <div className="flex items-center gap-2 min-w-[200px] shrink-0">
-        <span className="text-base md:text-lg font-medium text-white">
+      <div className="flex min-w-[200px] shrink-0 items-center gap-2 min-[1500px]:w-[240px] min-[1500px]:min-w-[240px]">
+        <span className="text-base font-medium tabular-nums text-white md:text-lg">
           {formatTradingPrice(quote.price, selectedAssetSymbol, selectedAssetClass)}
         </span>
         <span
           className={cn(
-            "text-xs md:text-sm font-normal",
+            "text-xs font-normal tabular-nums md:text-sm",
             isPositive ? "text-primary" : "text-destructive",
           )}
         >
@@ -239,7 +239,7 @@ export function TradingFilterBar({
         })} */}
       </div>
 
-      <div className=" flex flex-wrap items-center gap-2.5 text-xs">
+      <div className="flex flex-wrap items-center min-[1500px]:justify-end gap-2.5 text-xs tabular-nums min-[1500px]:w-auto min-[1500px]:min-w-[235px]">
         <OhlcvStat label="O" value={formatTradingPrice(ohlcv.open, selectedAssetSymbol, selectedAssetClass)} />
         <OhlcvStat label="H" value={formatTradingPrice(ohlcv.high, selectedAssetSymbol, selectedAssetClass)} tone="positive" />
         <OhlcvStat label="L" value={formatTradingPrice(ohlcv.low, selectedAssetSymbol, selectedAssetClass)} tone="negative" />
