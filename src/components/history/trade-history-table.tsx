@@ -43,16 +43,11 @@ import { cn } from "@/lib/utils";
 import type { TradeHistoryTableProps } from "@/types/trade-history";
 import type { Trade } from "@/types/trade";
 
-function formatTradeDateTime(trade: Trade) {
-  if (trade.time) {
-    return trade.time;
-  }
-
-  if (trade.openedAt || trade.closedAt) {
-    return formatDateTimeLabel(trade.closedAt ?? trade.openedAt);
-  }
-
-  return "-";
+function formatTradeDateTimes(trade: Trade) {
+  return {
+    opened: formatDateTimeLabel(trade.openedAt ?? trade.time),
+    closed: formatDateTimeLabel(trade.closedAt),
+  };
 }
 
 function HeaderStatPill({
@@ -72,11 +67,15 @@ function HeaderStatPill({
 
 function TradeHistoryRowCells({ trade }: { trade: Trade }) {
   const isClosed = !trade.status || trade.status === "Closed";
+  const dates = formatTradeDateTimes(trade);
 
   return (
     <TableRow className={TRADING_TABLE_ROW_CLASS}>
       <TableCell className="px-4 py-2 text-sm text-white/60">
-        {formatTradeDateTime(trade)}
+        <span className="whitespace-nowrap">{dates.opened}</span>
+      </TableCell>
+      <TableCell className="px-4 py-2 text-sm text-white/60">
+        <span className="whitespace-nowrap">{dates.closed}</span>
       </TableCell>
       <TableCell className="px-4 py-2">
         <TradingSymbolCell symbol={trade.symbol} />
@@ -112,8 +111,17 @@ function TradeHistoryRowCells({ trade }: { trade: Trade }) {
 const tradeHistoryColumns: ColumnDef<Trade>[] = [
   {
     accessorKey: "time",
-    header: ({ column }) => <SortableColumnHeader column={column} label="Date/Time" />,
-    cell: ({ row }) => <span>{formatTradeDateTime(row.original)}</span>,
+    header: ({ column }) => <SortableColumnHeader column={column} label="Open Date/Day" />,
+    cell: ({ row }) => {
+      const dates = formatTradeDateTimes(row.original);
+      return <span className="whitespace-nowrap">{dates.opened}</span>;
+    },
+  },
+  {
+    id: "closedAt",
+    accessorFn: (trade) => trade.closedAt ?? "",
+    header: ({ column }) => <SortableColumnHeader column={column} label="Close Date/Day" />,
+    cell: ({ row }) => <span className="whitespace-nowrap">{formatTradeDateTimes(row.original).closed}</span>,
   },
   {
     accessorKey: "symbol",
@@ -195,7 +203,8 @@ export function TradeHistoryTable({
     }
 
     const headers = [
-      "Date/Time",
+      "Open Date/Time",
+      "Close Date/Time",
       "Symbol",
       "Side",
       "Type",
@@ -205,17 +214,21 @@ export function TradeHistoryTable({
       "P&L",
       "Status",
     ];
-    const rows = trades.map((trade) => [
-      formatTradeDateTime(trade),
-      trade.symbol,
-      trade.type,
-      trade.executionType ?? "Market",
-      trade.vol,
-      trade.openP,
-      trade.closeP,
-      trade.profit.toFixed(2),
-      trade.status ?? "Closed",
-    ]);
+    const rows = trades.map((trade) => {
+      const dates = formatTradeDateTimes(trade);
+      return [
+        dates.opened,
+        dates.closed,
+        trade.symbol,
+        trade.type,
+        trade.executionType ?? "Market",
+        trade.vol,
+        trade.openP,
+        trade.closeP,
+        trade.profit.toFixed(2),
+        trade.status ?? "Closed",
+      ];
+    });
     const csv = [headers, ...rows].map((row) => row.join(",")).join("\n");
     downloadTextFile("trade-history.csv", csv, "text/csv");
   }, [trades]);
@@ -272,7 +285,7 @@ export function TradeHistoryTable({
       ) : (
         <div className="space-y-4">
           <ResponsiveTableScroll>
-            <Table className="min-w-[980px]">
+            <Table className="min-w-[1120px]">
               <TableHeader variant="gradient">
                 <TableRow className="hover:bg-transparent">
                   {table.getHeaderGroups()[0]?.headers.map((header) => (
