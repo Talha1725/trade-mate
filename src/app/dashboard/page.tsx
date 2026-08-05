@@ -550,7 +550,6 @@ export default function DashboardPage() {
           <div className="col-span-12 flex flex-col gap-6 xl:col-span-4">
             <MarketWatchCard
               items={liveWatchlistItems}
-              isLoading={isWishlistLoading}
               selectedItemId={selectedMarketId}
               onItemSelect={setSelectedMarketId}
               onWatchlistToggle={toggleWishlistAsset}
