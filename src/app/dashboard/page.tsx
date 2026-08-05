@@ -186,7 +186,6 @@ export default function DashboardPage() {
   const {
     watchlistItems: accountWatchlistItems,
     toggleWishlistAsset,
-    isLoading: isWishlistLoading,
   } = useAccountWishlist(accountNumber, tradingAssets);
   const [liveWatchlistItems, setLiveWatchlistItems] = React.useState<MarketWatchItem[]>([]);
 
