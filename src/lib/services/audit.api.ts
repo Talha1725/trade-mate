@@ -66,7 +66,10 @@ export const auditApi = {
 
       return {
         id: log.id,
-        timestamp: new Date(log.createdAt).toLocaleString(),
+        timestamp: new Date(log.createdAt).toLocaleString("en-US", {
+          timeZone: "UTC",
+          timeZoneName: "short",
+        }),
         adminId: log.adminId || "",
         adminEmail: log.admin?.email || "System",
         action: actionMapped,

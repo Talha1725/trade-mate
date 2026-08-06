@@ -56,6 +56,8 @@ export function formatDateLabel(dateValue: string | null | undefined) {
   return date.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
+    timeZone: "UTC",
+    timeZoneName: "short",
   });
 }
 
@@ -76,6 +78,8 @@ export function formatDateTimeLabel(dateValue: string | null | undefined) {
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "UTC",
+    timeZoneName: "short",
   });
 }
 
