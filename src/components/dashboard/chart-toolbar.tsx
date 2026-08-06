@@ -19,8 +19,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import type { ChartToolId } from "@/types/lightweight-trading-chart";
-import type { ChartIndicatorId } from "@/types/lightweight-trading-chart";
+import type { ChartIndicatorId, ChartToolId, MagnetMode } from "@/types/lightweight-trading-chart";
 
 const TOOLBAR_ITEMS = [
   { id: "crosshair", icon: Crosshair, label: "Crosshair" },
@@ -48,7 +47,7 @@ const INDICATOR_ITEMS = [
 type ChartToolbarProps = {
   className?: string;
   activeTool: ChartToolId;
-  magnetEnabled: boolean;
+  magnetMode: MagnetMode;
   onToolChange: (tool: ChartToolId) => void;
   onMagnetToggle: () => void;
   onZoomIn: () => void;
@@ -63,7 +62,7 @@ type ChartToolbarProps = {
 export function ChartToolbar({
   className,
   activeTool,
-  magnetEnabled,
+  magnetMode,
   onToolChange,
   onMagnetToggle,
   onZoomIn,
@@ -84,14 +83,15 @@ export function ChartToolbar({
       {TOOLBAR_ITEMS.map((item) => {
         const Icon = item.icon;
         const isMagnet = item.id === "magnet";
-        const isActive = isMagnet ? magnetEnabled : item.id === activeTool;
+        const isActive = isMagnet ? magnetMode !== "off" : item.id === activeTool;
+        const itemLabel = isMagnet ? `Magnet: ${magnetMode[0].toUpperCase()}${magnetMode.slice(1)}` : item.label;
 
         return (
           <button
             key={item.id}
             type="button"
-            title={item.label}
-            aria-label={item.label}
+            title={itemLabel}
+            aria-label={isMagnet ? itemLabel : item.label}
             aria-pressed={isActive}
             onClick={() => {
               if (item.id === "zoom-in") {

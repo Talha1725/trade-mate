@@ -35,6 +35,8 @@ export type ChartPoint = {
   snappedField?: "open" | "high" | "low" | "close" | null;
 };
 
+export type MagnetMode = "off" | "weak" | "strong";
+
 export type TrendlineStyle = {
   color: string;
   opacity: number;

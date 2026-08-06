@@ -29,6 +29,7 @@ import {
 } from "@/lib/utils/chart-indicators";
 import { mergeLiveQuoteIntoCandles } from "@/lib/utils/merge-live-quote-candles";
 import { calculateFibPrice, DEFAULT_FIBONACCI_LEVELS, formatFibonacciLevelLabel } from "@/lib/utils/fibonacci";
+import { resolveMagnetSnap, validateMagnetSettings } from "@/lib/utils/magnet-snap";
 import { cn } from "@/lib/utils";
 import type { ChartCandle } from "@/types/eodhd";
 import type {
@@ -39,6 +40,7 @@ import type {
   ChartToolId,
   FibonacciDrawing,
   LightweightTradingChartProps,
+  MagnetMode,
   TrendlineDrawing,
 } from "@/types/lightweight-trading-chart";
 
@@ -326,7 +328,10 @@ export function LightweightTradingChart({
   const drawingOverlayRef = React.useRef<SVGSVGElement>(null);
   const [activeTool, setActiveTool] = React.useState<ChartToolId>("crosshair");
   const [enabledIndicators, setEnabledIndicators] = React.useState<ChartIndicatorId[]>([]);
-  const [magnetEnabled, setMagnetEnabled] = React.useState(false);
+  const [magnetMode, setMagnetMode] = React.useState<MagnetMode>("off");
+  const [magnetLastEnabledMode, setMagnetLastEnabledMode] = React.useState<"weak" | "strong">("weak");
+  const [magnetThresholdPx] = React.useState(12);
+  const [snapIndicator, setSnapIndicator] = React.useState<{ point: ChartPoint; field: string; price: number } | null>(null);
   const [drawings, setDrawings] = React.useState<AnyChartDrawing[]>([]);
   const [redoDrawings, setRedoDrawings] = React.useState<AnyChartDrawing[]>([]);
   const [draftPoints, setDraftPoints] = React.useState<ChartPoint[]>([]);
@@ -360,6 +365,7 @@ export function LightweightTradingChart({
   const draftTrendlinePendingClickPointRef = React.useRef<ChartPoint | null>(null);
   const [overlayRevision, setOverlayRevision] = React.useState(0);
   const drawingsStorageKey = `trade-mate:chart-drawings:${symbol}:${timeframe}`;
+  const magnetStorageKey = "trade-mate:chart-magnet-settings";
   const drawingsHydratedRef = React.useRef(false);
 
   React.useEffect(() => {
@@ -386,6 +392,23 @@ export function LightweightTradingChart({
       window.localStorage.setItem(drawingsStorageKey, JSON.stringify(drawings));
     }
   }, [drawings, drawingsStorageKey]);
+
+  React.useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(magnetStorageKey);
+      if (stored) {
+        const settings = validateMagnetSettings(JSON.parse(stored));
+        setMagnetMode(settings.mode);
+        setMagnetLastEnabledMode(settings.lastEnabledMode);
+      }
+    } catch {
+      setMagnetMode("off");
+    }
+  }, []);
+
+  React.useEffect(() => {
+    window.localStorage.setItem(magnetStorageKey, JSON.stringify({ mode: magnetMode, weakThresholdPx: magnetThresholdPx, lastEnabledMode: magnetLastEnabledMode }));
+  }, [magnetMode, magnetLastEnabledMode, magnetThresholdPx]);
 
   const normalizedCompareSymbol = React.useMemo(() => {
     if (!compareSymbol) {
@@ -449,7 +472,7 @@ export function LightweightTradingChart({
   }, []);
 
   const getChartPoint = React.useCallback(
-    (event: React.PointerEvent<SVGSVGElement>) => {
+    (event: React.PointerEvent<HTMLElement>, applyMagnet = true) => {
       const overlay = drawingOverlayRef.current;
       const chart = mainChartRef.current;
       const series = candleSeriesRef.current;
@@ -468,32 +491,30 @@ export function LightweightTradingChart({
         return null;
       }
 
-      let point: ChartPoint = { time: rawTime, price: rawPrice, snappedField: null };
-
-      if (magnetEnabled && displayCandles.length > 0) {
-        const nearestIndex = displayCandles.reduce(
-          (bestIndex, candle, index) =>
-            Math.abs(candle.time - point.time) < Math.abs(displayCandles[bestIndex].time - point.time)
-              ? index
-              : bestIndex,
-          0,
-        );
-        const nearest = displayCandles[nearestIndex];
-        const fields = [
-          ["open", nearest.open],
-          ["high", nearest.high],
-          ["low", nearest.low],
-          ["close", nearest.close],
-        ] as const;
-        const [snappedField, snappedPrice] = fields.reduce((best, current) =>
-          Math.abs(current[1] - point.price) < Math.abs(best[1] - point.price) ? current : best,
-        );
-        point = { time: nearest.time, price: snappedPrice, logicalIndex: nearestIndex, snappedField };
+      if (!applyMagnet) {
+        setSnapIndicator(null);
+        return { time: rawTime, price: rawPrice, snappedField: null };
       }
 
-      return point;
+      const snap = resolveMagnetSnap({
+        pointerX: x,
+        pointerY: y,
+        mode: magnetMode,
+        temporaryToggleActive: event.ctrlKey || event.metaKey,
+        thresholdPx: magnetThresholdPx,
+        timeScale: chart.timeScale(),
+        series,
+        candles: displayCandles,
+      });
+      if (snap.snapped && snap.field) {
+        const snappedPoint: ChartPoint = { time: snap.time, price: snap.price, logicalIndex: snap.logicalIndex, snappedField: snap.field };
+        setSnapIndicator({ point: snappedPoint, field: snap.field, price: snap.price });
+        return snappedPoint;
+      }
+      setSnapIndicator(null);
+      return { time: rawTime, price: rawPrice, snappedField: null };
     },
-    [displayCandles, magnetEnabled],
+    [displayCandles, magnetMode, magnetThresholdPx],
   );
 
   const commitDrawing = React.useCallback(
@@ -578,7 +599,7 @@ export function LightweightTradingChart({
     return x === null || y === null ? null : { x: Number(x), y: Number(y) };
   }, []);
 
-  const findTrendlineAtPoint = React.useCallback((event: React.PointerEvent<SVGSVGElement>) => {
+  const findTrendlineAtPoint = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
     const overlay = drawingOverlayRef.current;
     if (!overlay) {
       return null;
@@ -614,7 +635,7 @@ export function LightweightTradingChart({
     return null;
   }, [drawings, toPixelPoint]);
 
-  const findTrendlineHandleAtPoint = React.useCallback((event: React.PointerEvent<SVGSVGElement>) => {
+  const findTrendlineHandleAtPoint = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
     const overlay = drawingOverlayRef.current;
     if (!overlay) {
       return null;
@@ -660,7 +681,7 @@ export function LightweightTradingChart({
     return { pixels, plotWidth, left: Math.max(0, left), right: Math.min(plotWidth, right), levels };
   }, [toPixelPoint]);
 
-  const findFibonacciAtPoint = React.useCallback((event: React.PointerEvent<SVGSVGElement>) => {
+  const findFibonacciAtPoint = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
     const overlay = drawingOverlayRef.current;
     if (!overlay) return null;
     const bounds = overlay.getBoundingClientRect();
@@ -686,7 +707,7 @@ export function LightweightTradingChart({
     return null;
   }, [drawings, getFibonacciGeometry, selectedDrawingId]);
 
-  const findFibonacciHandleAtPoint = React.useCallback((event: React.PointerEvent<SVGSVGElement>) => {
+  const findFibonacciHandleAtPoint = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
     const overlay = drawingOverlayRef.current;
     if (!overlay) return null;
     const bounds = overlay.getBoundingClientRect();
@@ -702,7 +723,7 @@ export function LightweightTradingChart({
     return null;
   }, [drawings, toPixelPoint]);
 
-  const findTextAtPoint = React.useCallback((event: React.PointerEvent<SVGSVGElement>) => {
+  const findTextAtPoint = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
     const overlay = drawingOverlayRef.current;
     if (!overlay) return null;
     const bounds = overlay.getBoundingClientRect();
@@ -747,7 +768,7 @@ export function LightweightTradingChart({
   }, [textEditor]);
 
   const handleDrawingPointerDown = React.useCallback(
-    (event: React.PointerEvent<SVGSVGElement>) => {
+    (event: React.PointerEvent<HTMLElement>) => {
       if (activeTool === "crosshair") {
         return;
       }
@@ -873,6 +894,17 @@ export function LightweightTradingChart({
         if (hitTextId) {
           const hitText = drawings.find((drawing) => drawing.id === hitTextId);
           if (hitText?.tool === "text") {
+            if (event.detail >= 2) {
+              const pixel = toPixelPoint(hitText.points[0]);
+              const bounds = drawingOverlayRef.current?.getBoundingClientRect();
+              setTextEditor({
+                point: hitText.points[0],
+                value: hitText.text ?? "",
+                pixel: pixel ? { x: pixel.x, y: pixel.y } : bounds ? { x: event.clientX - bounds.left, y: event.clientY - bounds.top } : { x: 8, y: 8 },
+                editingId: hitText.id,
+              });
+              return;
+            }
             draggingTextRef.current = { id: hitText.id, start: point, originalPoint: hitText.points[0] };
             setSelectedDrawingId(hitText.id);
           }
@@ -903,7 +935,7 @@ export function LightweightTradingChart({
   );
 
   const handleDrawingPointerMove = React.useCallback(
-    (event: React.PointerEvent<SVGSVGElement>) => {
+    (event: React.PointerEvent<HTMLElement>) => {
       if (draggingDraftTrendlineRef.current) {
         const pointerStart = draftTrendlinePointerStartRef.current;
         if (pointerStart && !draftTrendlineMovedRef.current) {
@@ -927,7 +959,7 @@ export function LightweightTradingChart({
 
       const draggingTrendline = draggingTrendlineRef.current;
       if (draggingTrendline) {
-        const point = getChartPoint(event);
+        const point = getChartPoint(event, draggingTrendline.mode !== "body");
         if (point) {
           setDrawings((current) => current.map((drawing) => {
             if (drawing.id !== draggingTrendline.id || drawing.tool !== "trendline") {
@@ -957,7 +989,7 @@ export function LightweightTradingChart({
 
       const draggingFibonacci = draggingFibonacciRef.current;
       if (draggingFibonacci) {
-        const point = getChartPoint(event);
+        const point = getChartPoint(event, draggingFibonacci.mode !== "body");
         if (point) {
           setDrawings((current) => current.map((drawing) => {
             if (drawing.id !== draggingFibonacci.id || drawing.tool !== "fibonacci") return drawing;
@@ -980,7 +1012,7 @@ export function LightweightTradingChart({
 
       const draggingText = draggingTextRef.current;
       if (draggingText) {
-        const point = getChartPoint(event);
+        const point = getChartPoint(event, false);
         if (point) {
           const timeDelta = point.time - draggingText.start.time;
           const priceDelta = point.price - draggingText.start.price;
@@ -1015,6 +1047,7 @@ export function LightweightTradingChart({
   );
 
   const handleDrawingPointerUp = React.useCallback(() => {
+    setSnapIndicator(null);
     if (draggingDraftTrendlineRef.current) {
       draggingDraftTrendlineRef.current = false;
 
@@ -1090,7 +1123,7 @@ export function LightweightTradingChart({
         draftTrendlineMovedRef.current = true;
       }
 
-      const point = getChartPoint(event as unknown as React.PointerEvent<SVGSVGElement>);
+      const point = getChartPoint(event as unknown as React.PointerEvent<HTMLElement>);
       if (point) {
           setDraftPoints((current) => {
             const anchor = draftTrendlineAnchorRef.current ?? current[0];
@@ -1524,7 +1557,7 @@ export function LightweightTradingChart({
               clipPath={`url(#${textClipId})`}
               onPointerDown={(event) => {
                 if (activeTool !== "text") return;
-                const point = getChartPoint(event as unknown as React.PointerEvent<SVGSVGElement>);
+                const point = getChartPoint(event as unknown as React.PointerEvent<HTMLElement>);
                 if (!point || !drawing.points[0]) return;
                 event.stopPropagation();
                 event.currentTarget.setPointerCapture(event.pointerId);
@@ -2035,6 +2068,7 @@ export function LightweightTradingChart({
     ? drawings.find((drawing): drawing is FibonacciDrawing => drawing.id === selectedDrawingId && drawing.tool === "fibonacci")
     : null;
   const textEditorPixel = textEditor?.pixel ?? null;
+  const snapPixel = snapIndicator ? toPixelPoint(snapIndicator.point) : null;
 
   return (
     <div
@@ -2046,7 +2080,7 @@ export function LightweightTradingChart({
       <div className="flex min-h-[560px] gap-x-2 h-full">
         <ChartToolbar
           activeTool={activeTool}
-          magnetEnabled={magnetEnabled}
+          magnetMode={magnetMode}
           enabledIndicators={enabledIndicators}
           onToolChange={(tool) => {
             setActiveTool(tool);
@@ -2062,7 +2096,13 @@ export function LightweightTradingChart({
             setTextEditor(null);
             setIsDraggingTrendline(false);
           }}
-          onMagnetToggle={() => setMagnetEnabled((current) => !current)}
+          onMagnetToggle={() => {
+            setMagnetMode((current) => {
+              const next = current === "off" ? "weak" : current === "weak" ? "strong" : "off";
+              if (next !== "off") setMagnetLastEnabledMode(next);
+              return next;
+            });
+          }}
           onIndicatorToggle={toggleIndicator}
           onZoomIn={zoomIn}
           onZoomOut={zoomOut}
@@ -2087,39 +2127,41 @@ export function LightweightTradingChart({
             </div>
           ) : null}
 
-          <div className="relative min-h-[420px] flex-1 ">
+          <div
+            className="relative min-h-[420px] flex-1"
+            onPointerDownCapture={(event) => {
+              const target = event.target as HTMLElement;
+              if (activeTool !== "crosshair" && !target.closest("button, input, textarea, select")) {
+                event.preventDefault();
+                event.stopPropagation();
+                handleDrawingPointerDown(event);
+              }
+            }}
+            onPointerMove={handleDrawingPointerMove}
+            onPointerUp={handleDrawingPointerUp}
+            onPointerCancel={handleDrawingPointerUp}
+            onPointerLeave={() => {
+              if (!isDraggingTrendline) {
+                setHoveredTrendlineId(null);
+                setHoveredTrendlineEndpoint(null);
+              }
+            }}
+          >
             <div ref={mainContainerRef} className="absolute inset-0 [&_.tv-lightweight-charts]:bg-transparent" />
             <svg
               ref={drawingOverlayRef}
               data-revision={overlayRevision}
-              className={cn(
-                "absolute inset-0 z-[5] h-full w-full",
-                activeTool === "crosshair"
-                  ? "pointer-events-none"
-                  : isDraggingTrendline
-                    ? "pointer-events-auto cursor-grabbing"
-                    : hoveredTrendlineEndpoint !== null
-                      ? "pointer-events-auto cursor-grab"
-                      : hoveredTrendlineId
-                        ? "pointer-events-auto cursor-move"
-                        : "pointer-events-auto cursor-crosshair",
-              )}
-              onPointerDown={handleDrawingPointerDown}
-              onPointerMove={handleDrawingPointerMove}
-              onPointerUp={handleDrawingPointerUp}
-              onPointerCancel={handleDrawingPointerUp}
-              onPointerLeave={() => {
-                if (!isDraggingTrendline) {
-                  setHoveredTrendlineId(null);
-                  setHoveredTrendlineEndpoint(null);
-                }
-              }}
+              className="pointer-events-none absolute inset-0 z-[5] h-full w-full"
             >
               {renderedDrawings}
+              {snapPixel ? (
+                <circle cx={snapPixel.x} cy={snapPixel.y} r="5" fill="#FFFFFF" stroke="#2962FF" strokeWidth="2" pointerEvents="none" />
+              ) : null}
             </svg>
             {textEditor && textEditorPixel ? (
               <input
                 autoFocus
+                onPointerDown={(event) => event.stopPropagation()}
                 value={textEditor.value}
                 onChange={(event) => setTextEditor({ ...textEditor, value: event.target.value })}
                 onKeyDown={(event) => {
@@ -2137,7 +2179,7 @@ export function LightweightTradingChart({
               />
             ) : null}
             {selectedFibonacci ? (
-              <div className="pointer-events-auto absolute left-3 top-3 z-20 flex items-center gap-1 rounded-md border border-white/20 bg-black/95 p-1 shadow-lg">
+              <div onPointerDown={(event) => event.stopPropagation()} className="pointer-events-auto absolute left-3 top-3 z-20 flex items-center gap-1 rounded-md border border-white/20 bg-black/95 p-1 shadow-lg">
                 <button type="button" title="Reverse Fibonacci" aria-label="Reverse Fibonacci" onClick={() => updateSelectedFibonacci((drawing) => ({ ...drawing, style: { ...drawing.style, reverse: !drawing.style.reverse }, updatedAt: Date.now() }))} className="rounded px-2 py-1 text-[11px] text-white/80 hover:bg-white/10">Reverse</button>
                 <button type="button" title="Extend left" aria-label="Extend left" onClick={() => updateSelectedFibonacci((drawing) => ({ ...drawing, style: { ...drawing.style, extendLeft: !drawing.style.extendLeft }, updatedAt: Date.now() }))} className="rounded px-2 py-1 text-[11px] text-white/80 hover:bg-white/10">L</button>
                 <button type="button" title="Extend right" aria-label="Extend right" onClick={() => updateSelectedFibonacci((drawing) => ({ ...drawing, style: { ...drawing.style, extendRight: !drawing.style.extendRight }, updatedAt: Date.now() }))} className="rounded px-2 py-1 text-[11px] text-white/80 hover:bg-white/10">R</button>
