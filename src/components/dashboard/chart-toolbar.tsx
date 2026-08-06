@@ -29,7 +29,7 @@ const TOOLBAR_ITEMS = [
   { id: "path", icon: PenLine, label: "Path" },
   { id: "text", icon: Type, label: "Text" },
   { id: "magnet", icon: Magnet, label: "Magnet" },
-  { id: "ruler", icon: Ruler, label: "Ruler" },
+  { id: "ruler", icon: Ruler, label: "Scale / Measure" },
   { id: "zoom-in", icon: ZoomIn, label: "Zoom in" },
   { id: "zoom-out", icon: ZoomOut, label: "Zoom out" },
   { id: "reset", icon: RotateCcw, label: "Reset view" },

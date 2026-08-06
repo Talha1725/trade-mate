@@ -134,6 +134,22 @@ function formatSignedLegendValue(value: number) {
   return value < 0 ? `-${formatted}` : `+${formatted}`;
 }
 
+function formatMeasurementDuration(seconds: number) {
+  const value = Math.abs(seconds);
+  if (value >= 86400) return `${(value / 86400).toFixed(1).replace(/\.0$/, "")}d`;
+  if (value >= 3600) return `${(value / 3600).toFixed(1).replace(/\.0$/, "")}h`;
+  if (value >= 60) return `${Math.round(value / 60)}m`;
+  return `${Math.round(value)}s`;
+}
+
+function formatMeasurementVolume(value: number) {
+  const absolute = Math.abs(value);
+  if (absolute >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2).replace(/\.00$/, "")}B`;
+  if (absolute >= 1_000_000) return `${(value / 1_000_000).toFixed(2).replace(/\.00$/, "")}M`;
+  if (absolute >= 1_000) return `${(value / 1_000).toFixed(2).replace(/\.00$/, "")}K`;
+  return Math.round(value).toLocaleString("en-US");
+}
+
 function formatTrendlinePrice(value: number) {
   if (Math.abs(value) < 10) {
     return value.toFixed(5);
@@ -351,6 +367,9 @@ export function LightweightTradingChart({
     originalPoints?: [ChartPoint, ChartPoint];
   } | null>(null);
   const draggingDraftTrendlineRef = React.useRef(false);
+  const draggingDraftRulerRef = React.useRef(false);
+  const draftRulerMovedRef = React.useRef(false);
+  const draftRulerPointerStartRef = React.useRef<{ x: number; y: number } | null>(null);
   const draggingFibonacciRef = React.useRef<{
     id: string;
     mode: "endpoint" | "body";
@@ -523,11 +542,13 @@ export function LightweightTradingChart({
         return;
       }
 
+      const id = `${tool}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       setDrawings((current) => [
         ...current,
-        { id: `${tool}-${Date.now()}-${current.length}`, tool, points, text },
+        { id, tool, points, text },
       ]);
       setRedoDrawings([]);
+      setSelectedDrawingId(id);
       setDraftPoints([]);
       setDraftPreviewPoint(null);
     },
@@ -920,6 +941,23 @@ export function LightweightTradingChart({
         return;
       }
 
+      if (activeTool === "ruler") {
+        if (draftPoints.length === 0) {
+          setDrawings((current) => current.filter((drawing) => drawing.tool !== "ruler"));
+          setSelectedDrawingId(null);
+          setDraftPoints([point]);
+          setDraftPreviewPoint(null);
+          setIsDrawing(true);
+          draggingDraftRulerRef.current = true;
+          draftRulerMovedRef.current = false;
+          draftRulerPointerStartRef.current = { x: event.clientX, y: event.clientY };
+        } else {
+          commitDrawing("ruler", [draftPoints[0], point]);
+          setIsDrawing(false);
+        }
+        return;
+      }
+
       setDraftPoints((current) => {
         const next = [...current, point];
 
@@ -936,6 +974,17 @@ export function LightweightTradingChart({
 
   const handleDrawingPointerMove = React.useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
+      if (draggingDraftRulerRef.current) {
+        const pointerStart = draftRulerPointerStartRef.current;
+        if (pointerStart && !draftRulerMovedRef.current) {
+          if (Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) < 4) return;
+          draftRulerMovedRef.current = true;
+        }
+        const point = getChartPoint(event);
+        if (point) setDraftPreviewPoint(point);
+        return;
+      }
+
       if (draggingDraftTrendlineRef.current) {
         const pointerStart = draftTrendlinePointerStartRef.current;
         if (pointerStart && !draftTrendlineMovedRef.current) {
@@ -1025,7 +1074,7 @@ export function LightweightTradingChart({
         return;
       }
 
-      if (!isDrawing && !((activeTool === "trendline" || activeTool === "fibonacci") && draftPoints.length === 1)) {
+      if (!isDrawing && !((activeTool === "trendline" || activeTool === "fibonacci" || activeTool === "ruler") && draftPoints.length === 1)) {
         if (activeTool === "trendline") {
           const handle = findTrendlineHandleAtPoint(event);
           setHoveredTrendlineId(handle?.id ?? findTrendlineAtPoint(event));
@@ -1036,7 +1085,7 @@ export function LightweightTradingChart({
 
       const point = getChartPoint(event);
 
-      if (point && (activeTool === "trendline" || activeTool === "fibonacci") && draftPoints.length === 1) {
+      if (point && (activeTool === "trendline" || activeTool === "fibonacci" || activeTool === "ruler") && draftPoints.length === 1) {
         // Keep the first anchor fixed and extend the preview line to the cursor.
         setDraftPreviewPoint(point);
       } else if (point) {
@@ -1048,6 +1097,21 @@ export function LightweightTradingChart({
 
   const handleDrawingPointerUp = React.useCallback(() => {
     setSnapIndicator(null);
+    if (draggingDraftRulerRef.current) {
+      draggingDraftRulerRef.current = false;
+      draftRulerPointerStartRef.current = null;
+      if (draftRulerMovedRef.current && draftPoints[0] && draftPreviewPoint) {
+        commitDrawing("ruler", [draftPoints[0], draftPreviewPoint]);
+        setIsDrawing(false);
+        setDraftPreviewPoint(null);
+        draftRulerMovedRef.current = false;
+        return;
+      }
+      draftRulerMovedRef.current = false;
+      setIsDrawing(false);
+      return;
+    }
+
     if (draggingDraftTrendlineRef.current) {
       draggingDraftTrendlineRef.current = false;
 
@@ -1093,6 +1157,11 @@ export function LightweightTradingChart({
       return;
     }
 
+    if (activeTool === "ruler" && draftPoints.length === 1) {
+      setIsDrawing(false);
+      return;
+    }
+
     if (!isDrawing) {
       return;
     }
@@ -1107,7 +1176,7 @@ export function LightweightTradingChart({
       setDraftPoints([]);
       setDraftPreviewPoint(null);
     }
-  }, [activeTool, commitDrawing, commitTrendline, draftPoints, isDrawing]);
+  }, [activeTool, commitDrawing, commitTrendline, draftPoints, draftPreviewPoint, isDrawing]);
 
   React.useEffect(() => {
     const handleDraftPointerMove = (event: PointerEvent) => {
@@ -1584,6 +1653,101 @@ export function LightweightTradingChart({
       const path = points.map((point) => `${point.x},${point.y}`).join(" ");
       const isRuler = drawing.tool === "ruler";
 
+      if (isRuler && points.length >= 2) {
+        const overlay = drawingOverlayRef.current;
+        const width = overlay?.clientWidth ?? 0;
+        const height = overlay?.clientHeight ?? 0;
+        const plotWidth = Math.min(width, mainChartRef.current?.timeScale().width() ?? Math.max(0, width - 78));
+        const clipped = clipTrendlineSegmentToPlot(points[0], points[1], plotWidth, height);
+        if (!clipped) return null;
+
+        const start = drawing.points[0];
+        const end = drawing.points[1];
+        const priceDelta = end.price - start.price;
+        const percentDelta = start.price !== 0 ? (priceDelta / start.price) * 100 : null;
+        const bars = start.logicalIndex !== undefined && end.logicalIndex !== undefined
+          ? Math.abs(end.logicalIndex - start.logicalIndex)
+          : null;
+        const firstTime = Math.min(start.time, end.time);
+        const lastTime = Math.max(start.time, end.time);
+        const volume = displayCandles
+          .filter((candle) => candle.time >= firstTime && candle.time <= lastTime)
+          .reduce((total, candle) => total + (Number.isFinite(candle.volume) ? candle.volume : 0), 0);
+        const duration = formatMeasurementDuration(end.time - start.time);
+        const statsText = [
+          `${formatSignedLegendValue(priceDelta)} (${percentDelta === null ? "--" : `${percentDelta < 0 ? "-" : "+"}${Math.abs(percentDelta).toFixed(2)}%`})`,
+          bars === null ? null : `${bars} bars`,
+          duration,
+          `Vol ${formatMeasurementVolume(volume)}`,
+        ].filter(Boolean).join(" · ");
+        const midpoint = {
+          x: (clipped.start.x + clipped.end.x) / 2,
+          y: (clipped.start.y + clipped.end.y) / 2,
+        };
+        const labelWidth = Math.min(290, Math.max(150, statsText.length * 7 + 18));
+        const labelHeight = 26;
+        const labelX = Math.max(0, Math.min(plotWidth - labelWidth, midpoint.x - labelWidth / 2));
+        const rangeBottom = Math.max(points[0].y, points[1].y);
+        const labelY = Math.max(0, Math.min(height - labelHeight, rangeBottom + 8));
+        const isDraft = drawing.id === "draft-ruler";
+        const showHandles = isDraft || selectedDrawingId === drawing.id;
+        const clipId = `ruler-clip-${drawing.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+        const fillColor = priceDelta >= 0 ? "#10B981" : "#EF4444";
+        const axisLabelWidth = Math.max(0, width - plotWidth);
+        const axisLabelHeight = 20;
+        const timeLabelWidth = 104;
+        const firstPriceLabelY = Math.max(0, Math.min(height - axisLabelHeight, points[0].y - axisLabelHeight / 2));
+        const secondPriceLabelY = Math.max(0, Math.min(height - axisLabelHeight, points[1].y - axisLabelHeight / 2));
+        const firstTimeLabelX = Math.max(0, Math.min(width - timeLabelWidth, points[0].x - timeLabelWidth / 2));
+        const secondTimeLabelX = Math.max(0, Math.min(width - timeLabelWidth, points[1].x - timeLabelWidth / 2));
+        const rangeLeft = Math.max(0, Math.min(points[0].x, points[1].x));
+        const rangeRight = Math.min(plotWidth, Math.max(points[0].x, points[1].x));
+        const rangeTop = Math.max(0, Math.min(points[0].y, points[1].y));
+        const rangeBottomClamped = Math.min(height, Math.max(points[0].y, points[1].y));
+        const arrowSize = 7;
+        const horizontalArrow = points[1].x >= points[0].x
+          ? `${rangeRight},${midpoint.y} ${rangeRight - arrowSize},${midpoint.y - arrowSize / 2} ${rangeRight - arrowSize},${midpoint.y + arrowSize / 2}`
+          : `${rangeLeft},${midpoint.y} ${rangeLeft + arrowSize},${midpoint.y - arrowSize / 2} ${rangeLeft + arrowSize},${midpoint.y + arrowSize / 2}`;
+        const verticalArrow = points[1].y >= points[0].y
+          ? `${midpoint.x},${rangeBottomClamped} ${midpoint.x - arrowSize / 2},${rangeBottomClamped - arrowSize} ${midpoint.x + arrowSize / 2},${rangeBottomClamped - arrowSize}`
+          : `${midpoint.x},${rangeTop} ${midpoint.x - arrowSize / 2},${rangeTop + arrowSize} ${midpoint.x + arrowSize / 2},${rangeTop + arrowSize}`;
+
+        return (
+          <g key={drawing.id}>
+            <defs><clipPath id={clipId}><rect x="0" y="0" width={plotWidth} height={height} /></clipPath></defs>
+            <g clipPath={`url(#${clipId})`}>
+              <rect x={Math.min(points[0].x, points[1].x)} y={Math.min(points[0].y, points[1].y)} width={Math.abs(points[1].x - points[0].x)} height={Math.abs(points[1].y - points[0].y)} fill={fillColor} opacity="0.12" />
+              <line x1={rangeLeft} y1={midpoint.y} x2={rangeRight} y2={midpoint.y} stroke={fillColor} strokeWidth="1.5" />
+              <polygon points={horizontalArrow} fill={fillColor} />
+              <line x1={midpoint.x} y1={rangeTop} x2={midpoint.x} y2={rangeBottomClamped} stroke={fillColor} strokeWidth="1.5" />
+              <polygon points={verticalArrow} fill={fillColor} />
+            </g>
+            <foreignObject x={labelX} y={labelY} width={labelWidth} height={labelHeight} pointerEvents="none">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%", color: "#FFFFFF", background: `${fillColor}CC`, border: `1px solid ${fillColor}`, borderRadius: 4, padding: "3px 6px", fontSize: 11, fontWeight: 500, whiteSpace: "nowrap", boxSizing: "border-box" }}>
+                {statsText}
+              </div>
+            </foreignObject>
+            {showHandles ? (
+              <>
+                {[{ y: firstPriceLabelY, value: start.price }, { y: secondPriceLabelY, value: end.price }].map((item, index) => (
+                  <g key={`${drawing.id}-price-axis-${index}`} pointerEvents="none">
+                    <rect x={plotWidth} y={item.y} width={axisLabelWidth} height={axisLabelHeight} rx="2" fill="#2962FF" />
+                    <text x={plotWidth + 5} y={item.y + 14} fill="#FFFFFF" fontSize="11" fontWeight="500">{formatTrendlinePrice(item.value)}</text>
+                  </g>
+                ))}
+                {[{ x: firstTimeLabelX, time: start.time }, { x: secondTimeLabelX, time: end.time }].map((item, index) => (
+                  <g key={`${drawing.id}-time-axis-${index}`} pointerEvents="none">
+                    <rect x={item.x} y={height - axisLabelHeight} width={timeLabelWidth} height={axisLabelHeight} rx="2" fill="#2962FF" />
+                    <text x={item.x + 5} y={height - 6} fill="#FFFFFF" fontSize="11" fontWeight="500">{formatTrendlineTime(item.time)}</text>
+                  </g>
+                ))}
+              </>
+            ) : null}
+            {showHandles ? points.map((point, index) => <circle key={`${drawing.id}-handle-${index}`} cx={point.x} cy={point.y} r="5" fill="#FFFFFF" stroke="#F59E0B" strokeWidth="2" />) : null}
+          </g>
+        );
+      }
+
       return (
         <g key={drawing.id}>
           <polyline points={path} fill="none" stroke={isRuler ? "#F59E0B" : "#22E0A2"} strokeWidth="2" />
@@ -1595,7 +1759,7 @@ export function LightweightTradingChart({
         </g>
       );
     },
-    [activeTool, getChartPoint, selectedDrawingId, toPixelPoint],
+    [activeTool, displayCandles, getChartPoint, selectedDrawingId, toPixelPoint],
   );
 
   React.useEffect(() => {
@@ -1624,6 +1788,12 @@ export function LightweightTradingChart({
               hidden: false,
               createdAt: 0,
               updatedAt: 0,
+            }]
+        : draftPoints.length > 0 && activeTool === "ruler"
+          ? [{
+              id: "draft-ruler",
+              tool: "ruler",
+              points: [draftPoints[0], draftPoints[1] ?? draftPreviewPoint ?? draftPoints[0]],
             }]
         : draftPoints.length > 0 && activeTool !== "text" && activeTool !== "crosshair"
           ? [{
