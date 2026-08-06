@@ -28,6 +28,7 @@ import {
   normalizeIndicatorPanelValues,
 } from "@/lib/utils/chart-indicators";
 import { mergeLiveQuoteIntoCandles } from "@/lib/utils/merge-live-quote-candles";
+import { calculateFibPrice, DEFAULT_FIBONACCI_LEVELS, formatFibonacciLevelLabel } from "@/lib/utils/fibonacci";
 import { cn } from "@/lib/utils";
 import type { ChartCandle } from "@/types/eodhd";
 import type {
@@ -35,6 +36,7 @@ import type {
   ChartIndicatorId,
   ChartPoint,
   ChartToolId,
+  FibonacciDrawing,
   LightweightTradingChartProps,
   TrendlineDrawing,
 } from "@/types/lightweight-trading-chart";
@@ -70,6 +72,33 @@ const TRENDLINE_DEFAULT_STATS = {
   showTimeRange: false,
   showAngle: false,
   position: "above" as const,
+};
+const FIBONACCI_DEFAULT_STYLE: FibonacciDrawing["style"] = {
+  showBaseline: true,
+  baselineColor: "#9CA3AF",
+  baselineOpacity: 0.8,
+  baselineWidth: 1,
+  baselineStyle: "dashed",
+  levelLineWidth: 1,
+  levelLineStyle: "solid",
+  extendLeft: false,
+  extendRight: false,
+  showBackground: true,
+  backgroundOpacity: 0.08,
+  useOneColor: false,
+  oneColor: "#2962FF",
+  reverse: false,
+  useLogScaleCalculation: false,
+};
+const FIBONACCI_DEFAULT_LABELS: FibonacciDrawing["labels"] = {
+  showRatio: true,
+  ratioDisplay: "decimal",
+  showPrice: true,
+  showCustomText: true,
+  horizontalPosition: "left",
+  verticalPosition: "center",
+  fontSize: 11,
+  textColor: "#FFFFFF",
 };
 const EMPTY_CANDLES: ChartCandle[] = [];
 
@@ -315,6 +344,13 @@ export function LightweightTradingChart({
     originalPoints?: [ChartPoint, ChartPoint];
   } | null>(null);
   const draggingDraftTrendlineRef = React.useRef(false);
+  const draggingFibonacciRef = React.useRef<{
+    id: string;
+    mode: "endpoint" | "body";
+    endpoint?: 0 | 1;
+    start?: ChartPoint;
+    originalPoints?: [ChartPoint, ChartPoint];
+  } | null>(null);
   const draftTrendlineAnchorRef = React.useRef<ChartPoint | null>(null);
   const draftTrendlineMovedRef = React.useRef(false);
   const draftTrendlinePointerStartRef = React.useRef<{ x: number; y: number } | null>(null);
@@ -502,6 +538,29 @@ export function LightweightTradingChart({
     setIsDrawing(false);
   }, []);
 
+  const commitFibonacci = React.useCallback((points: [ChartPoint, ChartPoint]) => {
+    if (points[0].time === points[1].time && points[0].price === points[1].price) return;
+    const now = Date.now();
+    const drawing: FibonacciDrawing = {
+      id: `fibonacci-${now}-${Math.random().toString(36).slice(2, 8)}`,
+      tool: "fibonacci",
+      points,
+      levels: DEFAULT_FIBONACCI_LEVELS.map((level) => ({ ...level })),
+      style: { ...FIBONACCI_DEFAULT_STYLE },
+      labels: { ...FIBONACCI_DEFAULT_LABELS },
+      locked: false,
+      hidden: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    setDrawings((current) => [...current, drawing]);
+    setRedoDrawings([]);
+    setSelectedDrawingId(drawing.id);
+    setDraftPoints([]);
+    setDraftPreviewPoint(null);
+    setIsDrawing(false);
+  }, []);
+
   const toPixelPoint = React.useCallback((point: ChartPoint) => {
     const chart = mainChartRef.current;
     const series = candleSeriesRef.current;
@@ -577,6 +636,66 @@ export function LightweightTradingChart({
       }
     }
 
+    return null;
+  }, [drawings, toPixelPoint]);
+
+  const getFibonacciGeometry = React.useCallback((drawing: FibonacciDrawing) => {
+    const overlay = drawingOverlayRef.current;
+    const chart = mainChartRef.current;
+    const series = candleSeriesRef.current;
+    if (!overlay || !chart || !series) return null;
+    const pixels = drawing.points.map(toPixelPoint);
+    if (!pixels[0] || !pixels[1]) return null;
+    const plotWidth = Math.min(overlay.clientWidth, chart.timeScale().width());
+    const left = drawing.style.extendLeft ? 0 : Math.min(pixels[0].x, pixels[1].x);
+    const right = drawing.style.extendRight ? plotWidth : Math.max(pixels[0].x, pixels[1].x);
+    const levels = drawing.levels.filter((level) => level.visible).map((level) => ({
+      level,
+      price: calculateFibPrice(drawing.points[0].price, drawing.points[1].price, level.ratio, drawing.style.reverse, drawing.style.useLogScaleCalculation),
+      y: series.priceToCoordinate(calculateFibPrice(drawing.points[0].price, drawing.points[1].price, level.ratio, drawing.style.reverse, drawing.style.useLogScaleCalculation)),
+    })).filter((item) => item.y !== null) as Array<{ level: FibonacciDrawing["levels"][number]; price: number; y: number }>;
+    return { pixels, plotWidth, left: Math.max(0, left), right: Math.min(plotWidth, right), levels };
+  }, [toPixelPoint]);
+
+  const findFibonacciAtPoint = React.useCallback((event: React.PointerEvent<SVGSVGElement>) => {
+    const overlay = drawingOverlayRef.current;
+    if (!overlay) return null;
+    const bounds = overlay.getBoundingClientRect();
+    const pointer = { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
+    for (const drawing of [...drawings].reverse()) {
+      if (drawing.tool !== "fibonacci") continue;
+      const fibonacci = drawing as FibonacciDrawing;
+      if (fibonacci.hidden) continue;
+      const geometry = getFibonacciGeometry(fibonacci);
+      if (!geometry || pointer.x < geometry.left - 8 || pointer.x > geometry.right + 8) continue;
+      const nearestLevel = geometry.levels.reduce<{ id: string; distance: number } | null>((best, item) => {
+        const distance = Math.abs(pointer.y - item.y);
+        return !best || distance < best.distance ? { id: item.level.id, distance } : best;
+      }, null);
+      const baselineDistance = distanceToSegment(pointer, geometry.pixels[0]!, geometry.pixels[1]!);
+      const visibleYs = geometry.levels.map((item) => item.y);
+      const insideFilledArea = drawing.id === selectedDrawingId
+        && geometry.levels.length > 1
+        && pointer.y >= Math.min(...visibleYs) - 4
+        && pointer.y <= Math.max(...visibleYs) + 4;
+      if ((nearestLevel && nearestLevel.distance <= 12) || baselineDistance <= 12 || insideFilledArea) return drawing.id;
+    }
+    return null;
+  }, [drawings, getFibonacciGeometry, selectedDrawingId]);
+
+  const findFibonacciHandleAtPoint = React.useCallback((event: React.PointerEvent<SVGSVGElement>) => {
+    const overlay = drawingOverlayRef.current;
+    if (!overlay) return null;
+    const bounds = overlay.getBoundingClientRect();
+    const pointer = { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
+    for (const drawing of [...drawings].reverse()) {
+      if (drawing.tool !== "fibonacci") continue;
+      const fibonacci = drawing as FibonacciDrawing;
+      if (fibonacci.hidden || fibonacci.locked) continue;
+      const pixels = fibonacci.points.map(toPixelPoint);
+      const endpoint = pixels.findIndex((pixel) => pixel && Math.hypot(pointer.x - pixel.x, pointer.y - pixel.y) <= 14);
+      if (endpoint === 0 || endpoint === 1) return { id: drawing.id, endpoint: endpoint as 0 | 1 };
+    }
     return null;
   }, [drawings, toPixelPoint]);
 
@@ -656,6 +775,40 @@ export function LightweightTradingChart({
         return;
       }
 
+      if (activeTool === "fibonacci") {
+        const point = getChartPoint(event);
+        if (!point) return;
+        if (draftPoints.length === 0) {
+          const handle = findFibonacciHandleAtPoint(event);
+          if (handle) {
+            draggingFibonacciRef.current = { ...handle, mode: "endpoint" };
+            setSelectedDrawingId(handle.id);
+            return;
+          }
+          const hitDrawingId = findFibonacciAtPoint(event);
+          if (hitDrawingId) {
+            setSelectedDrawingId(hitDrawingId);
+            const hitDrawing = drawings.find((drawing) => drawing.id === hitDrawingId);
+            if (hitDrawing?.tool === "fibonacci" && !(hitDrawing as FibonacciDrawing).locked) {
+              draggingFibonacciRef.current = {
+                id: hitDrawing.id,
+                mode: "body",
+                start: point,
+                originalPoints: [...(hitDrawing as FibonacciDrawing).points] as [ChartPoint, ChartPoint],
+              };
+            }
+            return;
+          }
+          setSelectedDrawingId(null);
+          setDraftPoints([point]);
+          setDraftPreviewPoint(null);
+          setIsDrawing(true);
+        } else {
+          commitFibonacci([draftPoints[0], point]);
+        }
+        return;
+      }
+
       const point = getChartPoint(event);
 
       if (!point) {
@@ -689,7 +842,7 @@ export function LightweightTradingChart({
         return next;
       });
     },
-    [activeTool, commitDrawing, commitTrendline, drawings, draftPoints, findTrendlineAtPoint, findTrendlineHandleAtPoint, getChartPoint],
+    [activeTool, commitDrawing, commitFibonacci, commitTrendline, drawings, draftPoints, findFibonacciAtPoint, findFibonacciHandleAtPoint, findTrendlineAtPoint, findTrendlineHandleAtPoint, getChartPoint],
   );
 
   const handleDrawingPointerMove = React.useCallback(
@@ -745,7 +898,30 @@ export function LightweightTradingChart({
         return;
       }
 
-      if (!isDrawing && !(activeTool === "trendline" && draftPoints.length === 1)) {
+      const draggingFibonacci = draggingFibonacciRef.current;
+      if (draggingFibonacci) {
+        const point = getChartPoint(event);
+        if (point) {
+          setDrawings((current) => current.map((drawing) => {
+            if (drawing.id !== draggingFibonacci.id || drawing.tool !== "fibonacci") return drawing;
+            const points: [ChartPoint, ChartPoint] = [...drawing.points] as [ChartPoint, ChartPoint];
+            if (draggingFibonacci.mode === "body" && draggingFibonacci.start && draggingFibonacci.originalPoints) {
+              const timeDelta = point.time - draggingFibonacci.start.time;
+              const priceDelta = point.price - draggingFibonacci.start.price;
+              return {
+                ...drawing,
+                points: draggingFibonacci.originalPoints.map((original) => ({ ...original, time: original.time + timeDelta, price: original.price + priceDelta })) as [ChartPoint, ChartPoint],
+                updatedAt: Date.now(),
+              };
+            }
+            if (draggingFibonacci.endpoint !== undefined) points[draggingFibonacci.endpoint] = point;
+            return { ...drawing, points, updatedAt: Date.now() };
+          }));
+        }
+        return;
+      }
+
+      if (!isDrawing && !((activeTool === "trendline" || activeTool === "fibonacci") && draftPoints.length === 1)) {
         if (activeTool === "trendline") {
           const handle = findTrendlineHandleAtPoint(event);
           setHoveredTrendlineId(handle?.id ?? findTrendlineAtPoint(event));
@@ -756,7 +932,7 @@ export function LightweightTradingChart({
 
       const point = getChartPoint(event);
 
-      if (point && activeTool === "trendline" && draftPoints.length === 1) {
+      if (point && (activeTool === "trendline" || activeTool === "fibonacci") && draftPoints.length === 1) {
         // Keep the first anchor fixed and extend the preview line to the cursor.
         setDraftPreviewPoint(point);
       } else if (point) {
@@ -792,7 +968,17 @@ export function LightweightTradingChart({
       return;
     }
 
+    if (draggingFibonacciRef.current) {
+      draggingFibonacciRef.current = null;
+      return;
+    }
+
     if (activeTool === "trendline") {
+      setIsDrawing(false);
+      return;
+    }
+
+    if (activeTool === "fibonacci" && draftPoints.length === 1) {
       setIsDrawing(false);
       return;
     }
@@ -895,6 +1081,22 @@ export function LightweightTradingChart({
     subChart.timeScale().setVisibleLogicalRange(range);
   }, [displayCandles.length, timeframe]);
 
+  const updateSelectedFibonacci = React.useCallback((update: (drawing: FibonacciDrawing) => FibonacciDrawing) => {
+    if (!selectedDrawingId) return;
+    setDrawings((current) => current.map((drawing) => (
+      drawing.id === selectedDrawingId && drawing.tool === "fibonacci"
+        ? update(drawing as FibonacciDrawing)
+        : drawing
+    )));
+    setRedoDrawings([]);
+  }, [selectedDrawingId]);
+
+  const deleteSelectedDrawing = React.useCallback(() => {
+    if (!selectedDrawingId) return;
+    setDrawings((current) => current.filter((drawing) => drawing.id !== selectedDrawingId || ("locked" in drawing && drawing.locked)));
+    setSelectedDrawingId(null);
+  }, [selectedDrawingId]);
+
   const undoDrawing = React.useCallback(() => {
     setDrawings((current) => {
       const removed = current[current.length - 1];
@@ -940,7 +1142,7 @@ export function LightweightTradingChart({
       }
 
       if ((event.key === "Delete" || event.key === "Backspace") && selectedDrawingId) {
-        setDrawings((current) => current.filter((drawing) => drawing.id !== selectedDrawingId));
+        setDrawings((current) => current.filter((drawing) => drawing.id !== selectedDrawingId || ("locked" in drawing && drawing.locked)));
         setSelectedDrawingId(null);
       }
 
@@ -1147,21 +1349,73 @@ export function LightweightTradingChart({
       }
 
       if (drawing.tool === "fibonacci" && points.length >= 2) {
-        const [start, end] = points;
-        const levels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
-
+        const fib = drawing as FibonacciDrawing;
+        const overlay = drawingOverlayRef.current;
+        const width = overlay?.clientWidth ?? 0;
+        const height = overlay?.clientHeight ?? 0;
+        const isDraft = fib.id === "draft-fibonacci";
+        const chart = mainChartRef.current;
+        const plotWidth = Math.min(width, chart?.timeScale().width() ?? Math.max(0, width - 78));
+        const left = fib.style.extendLeft ? 0 : Math.max(0, Math.min(points[0].x, points[1].x));
+        const right = fib.style.extendRight ? plotWidth : Math.min(plotWidth, Math.max(points[0].x, points[1].x));
+        const levelRows = fib.levels.filter((level) => level.visible).map((level) => {
+          const price = calculateFibPrice(fib.points[0].price, fib.points[1].price, level.ratio, fib.style.reverse, fib.style.useLogScaleCalculation);
+          const y = candleSeriesRef.current?.priceToCoordinate(price);
+          return y === null || y === undefined ? null : { level, price, y: Number(y) };
+        }).filter((item): item is { level: FibonacciDrawing["levels"][number]; price: number; y: number } => item !== null).sort((a, b) => a.y - b.y);
+        const clipId = `fibonacci-clip-${fib.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+        const lineDash = (style: "solid" | "dashed" | "dotted") => style === "dashed" ? "8 5" : style === "dotted" ? "2 4" : undefined;
+        const levelColor = (level: FibonacciDrawing["levels"][number]) => fib.style.useOneColor ? (fib.style.oneColor ?? "#2962FF") : level.color;
+        const labelX = fib.labels.horizontalPosition === "left"
+          ? Math.max(4, left - 8)
+          : fib.labels.horizontalPosition === "center"
+            ? (left + right) / 2
+            : Math.max(left + 6, right - 160);
+        const labelY = (y: number) => y + (fib.labels.verticalPosition === "above" ? -5 : fib.labels.verticalPosition === "below" ? 15 : 4);
+        const axisLabelWidth = Math.max(0, width - plotWidth);
+        const axisLabelHeight = 20;
+        const timeLabelWidth = 104;
+        const firstPriceLabelY = Math.max(0, Math.min(height - axisLabelHeight, points[0].y - axisLabelHeight / 2));
+        const secondPriceLabelY = Math.max(0, Math.min(height - axisLabelHeight, points[1].y - axisLabelHeight / 2));
+        const firstTimeLabelX = Math.max(0, Math.min(width - timeLabelWidth, points[0].x - timeLabelWidth / 2));
+        const secondTimeLabelX = Math.max(0, Math.min(width - timeLabelWidth, points[1].x - timeLabelWidth / 2));
+        const showAxisMarkers = fib.id !== "draft-fibonacci" && selectedDrawingId === fib.id;
         return (
           <g key={drawing.id}>
-            {levels.map((level) => {
-              const y = start.y + (end.y - start.y) * level;
-
-              return (
-                <g key={`${drawing.id}-${level}`}>
-                  <line x1={start.x} x2={end.x} y1={y} y2={y} stroke="#F59E0B" strokeDasharray="4 3" />
-                  <text x={end.x + 4} y={y - 3} fill="#F59E0B" fontSize="10">{`${Math.round(level * 100)}%`}</text>
-                </g>
-              );
-            })}
+            <defs><clipPath id={clipId}><rect x="0" y="0" width={plotWidth} height={height} /></clipPath></defs>
+            <g clipPath={`url(#${clipId})`}>
+              {fib.style.showBackground ? levelRows.slice(0, -1).map((current, index) => {
+                const next = levelRows[index + 1];
+                const fill = fib.style.useOneColor ? (fib.style.oneColor ?? "#2962FF") : (current.level.fillColor ?? current.level.color);
+                return <rect key={`${fib.id}-fill-${current.level.id}`} x={left} y={current.y} width={Math.max(0, right - left)} height={Math.max(0, next.y - current.y)} fill={fill} opacity={current.level.fillOpacity ?? fib.style.backgroundOpacity} />;
+              }) : null}
+              {levelRows.map(({ level, y }) => (
+                <line key={`${fib.id}-level-${level.id}`} x1={left} x2={right} y1={y} y2={y} stroke={levelColor(level)} opacity={level.opacity} strokeWidth={level.lineWidth ?? fib.style.levelLineWidth} strokeDasharray={lineDash(level.lineStyle ?? fib.style.levelLineStyle)} />
+              ))}
+              {fib.style.showBaseline ? <line x1={points[0].x} y1={points[0].y} x2={points[1].x} y2={points[1].y} stroke={fib.style.baselineColor} opacity={fib.style.baselineOpacity} strokeWidth={fib.style.baselineWidth} strokeDasharray={lineDash(fib.style.baselineStyle)} /> : null}
+            </g>
+            {levelRows.map(({ level, price, y }) => (
+              <text key={`${fib.id}-label-${level.id}`} x={labelX} y={labelY(y)} textAnchor={fib.labels.horizontalPosition === "left" ? "end" : "start"} fill={levelColor(level)} fontSize={fib.labels.fontSize} pointerEvents="none">
+                {formatFibonacciLevelLabel({ ratio: level.ratio, price, settings: fib.labels, customText: level.customText })}
+              </text>
+            ))}
+            {showAxisMarkers ? (
+              <>
+                {[{ y: firstPriceLabelY, value: fib.points[0].price }, { y: secondPriceLabelY, value: fib.points[1].price }].map((item, index) => (
+                  <g key={`${fib.id}-price-axis-${index}`} pointerEvents="none">
+                    <rect x={plotWidth} y={item.y} width={axisLabelWidth} height={axisLabelHeight} rx="2" fill="#2962FF" />
+                    <text x={plotWidth + 5} y={item.y + 14} fill="#FFFFFF" fontSize="11" fontWeight="500">{formatTrendlinePrice(item.value)}</text>
+                  </g>
+                ))}
+                {[{ x: firstTimeLabelX, time: fib.points[0].time }, { x: secondTimeLabelX, time: fib.points[1].time }].map((item, index) => (
+                  <g key={`${fib.id}-time-axis-${index}`} pointerEvents="none">
+                    <rect x={item.x} y={height - axisLabelHeight} width={timeLabelWidth} height={axisLabelHeight} rx="2" fill="#2962FF" />
+                    <text x={item.x + 5} y={height - 6} fill="#FFFFFF" fontSize="11" fontWeight="500">{formatTrendlineTime(item.time)}</text>
+                  </g>
+                ))}
+              </>
+            ) : null}
+            {selectedDrawingId === fib.id || isDraft ? points.map((point, index) => <circle key={`${fib.id}-handle-${index}`} cx={point.x} cy={point.y} r="5" fill="#FFFFFF" stroke="#2962FF" strokeWidth="2" />) : null}
           </g>
         );
       }
@@ -1201,6 +1455,19 @@ export function LightweightTradingChart({
             createdAt: 0,
             updatedAt: 0,
           }]
+        : draftPoints.length > 0 && activeTool === "fibonacci"
+          ? [{
+              id: "draft-fibonacci",
+              tool: "fibonacci",
+              points: [draftPoints[0], draftPoints[1] ?? draftPreviewPoint ?? draftPoints[0]],
+              levels: DEFAULT_FIBONACCI_LEVELS.map((level) => ({ ...level })),
+              style: { ...FIBONACCI_DEFAULT_STYLE },
+              labels: { ...FIBONACCI_DEFAULT_LABELS },
+              locked: false,
+              hidden: false,
+              createdAt: 0,
+              updatedAt: 0,
+            }]
         : draftPoints.length > 0 && activeTool !== "text" && activeTool !== "crosshair"
           ? [{
               id: "draft",
@@ -1640,6 +1907,10 @@ export function LightweightTradingChart({
     syncLastPriceLabel(series, last.close, priceLabelRef.current);
   }, [candles, effectiveLiveQuote, timeframe]);
 
+  const selectedFibonacci = selectedDrawingId
+    ? drawings.find((drawing): drawing is FibonacciDrawing => drawing.id === selectedDrawingId && drawing.tool === "fibonacci")
+    : null;
+
   return (
     <div
       className={cn(
@@ -1719,6 +1990,16 @@ export function LightweightTradingChart({
             >
               {renderedDrawings}
             </svg>
+            {selectedFibonacci ? (
+              <div className="pointer-events-auto absolute left-3 top-3 z-20 flex items-center gap-1 rounded-md border border-white/20 bg-black/95 p-1 shadow-lg">
+                <button type="button" title="Reverse Fibonacci" aria-label="Reverse Fibonacci" onClick={() => updateSelectedFibonacci((drawing) => ({ ...drawing, style: { ...drawing.style, reverse: !drawing.style.reverse }, updatedAt: Date.now() }))} className="rounded px-2 py-1 text-[11px] text-white/80 hover:bg-white/10">Reverse</button>
+                <button type="button" title="Extend left" aria-label="Extend left" onClick={() => updateSelectedFibonacci((drawing) => ({ ...drawing, style: { ...drawing.style, extendLeft: !drawing.style.extendLeft }, updatedAt: Date.now() }))} className="rounded px-2 py-1 text-[11px] text-white/80 hover:bg-white/10">L</button>
+                <button type="button" title="Extend right" aria-label="Extend right" onClick={() => updateSelectedFibonacci((drawing) => ({ ...drawing, style: { ...drawing.style, extendRight: !drawing.style.extendRight }, updatedAt: Date.now() }))} className="rounded px-2 py-1 text-[11px] text-white/80 hover:bg-white/10">R</button>
+                <button type="button" title="Toggle Fibonacci background" aria-label="Toggle Fibonacci background" onClick={() => updateSelectedFibonacci((drawing) => ({ ...drawing, style: { ...drawing.style, showBackground: !drawing.style.showBackground }, updatedAt: Date.now() }))} className="rounded px-2 py-1 text-[11px] text-white/80 hover:bg-white/10">Fill</button>
+                <button type="button" title="Toggle Fibonacci baseline" aria-label="Toggle Fibonacci baseline" onClick={() => updateSelectedFibonacci((drawing) => ({ ...drawing, style: { ...drawing.style, showBaseline: !drawing.style.showBaseline }, updatedAt: Date.now() }))} className="rounded px-2 py-1 text-[11px] text-white/80 hover:bg-white/10">Base</button>
+                <button type="button" title="Delete drawing" aria-label="Delete drawing" onClick={deleteSelectedDrawing} className="rounded px-2 py-1 text-[11px] text-red-300 hover:bg-red-500/20">Delete</button>
+              </div>
+            ) : null}
             {lastDisplayedClose !== null ? (
               <div
                 ref={priceLabelRef}

@@ -2,6 +2,7 @@
 
 import {
   Brush,
+  ChartSpline,
   Crosshair,
   GitBranch,
   Magnet,
@@ -24,7 +25,7 @@ import type { ChartIndicatorId } from "@/types/lightweight-trading-chart";
 const TOOLBAR_ITEMS = [
   { id: "crosshair", icon: Crosshair, label: "Crosshair" },
   { id: "trendline", icon: TrendingUp, label: "Trend line" },
-  { id: "fibonacci", icon: GitBranch, label: "Fibonacci" },
+  { id: "fibonacci", icon: ChartSpline, label: "Fibonacci retracement" },
   { id: "brush", icon: Brush, label: "Brush" },
   { id: "path", icon: PenLine, label: "Path" },
   { id: "text", icon: Type, label: "Text" },

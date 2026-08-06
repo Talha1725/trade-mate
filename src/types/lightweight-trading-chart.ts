@@ -68,6 +68,61 @@ export type TrendlineDrawing = {
   updatedAt: number;
 };
 
+export type FibonacciLevel = {
+  id: string;
+  ratio: number;
+  visible: boolean;
+  color: string;
+  opacity: number;
+  lineWidth?: number;
+  lineStyle?: "solid" | "dashed" | "dotted";
+  fillColor?: string;
+  fillOpacity?: number;
+  customText?: string;
+};
+
+export type FibonacciStyle = {
+  showBaseline: boolean;
+  baselineColor: string;
+  baselineOpacity: number;
+  baselineWidth: number;
+  baselineStyle: "solid" | "dashed" | "dotted";
+  levelLineWidth: number;
+  levelLineStyle: "solid" | "dashed" | "dotted";
+  extendLeft: boolean;
+  extendRight: boolean;
+  showBackground: boolean;
+  backgroundOpacity: number;
+  useOneColor: boolean;
+  oneColor?: string;
+  reverse: boolean;
+  useLogScaleCalculation: boolean;
+};
+
+export type FibonacciLabelSettings = {
+  showRatio: boolean;
+  ratioDisplay: "decimal" | "percentage";
+  showPrice: boolean;
+  showCustomText: boolean;
+  horizontalPosition: "left" | "center" | "right";
+  verticalPosition: "above" | "center" | "below";
+  fontSize: number;
+  textColor?: string;
+};
+
+export type FibonacciDrawing = {
+  id: string;
+  tool: "fibonacci";
+  points: [ChartPoint, ChartPoint];
+  levels: FibonacciLevel[];
+  style: FibonacciStyle;
+  labels: FibonacciLabelSettings;
+  locked: boolean;
+  hidden: boolean;
+  createdAt: number;
+  updatedAt: number;
+};
+
 export type ChartDrawing = {
   id: string;
   tool: Exclude<ChartToolId, "crosshair" | "trendline">;
@@ -75,4 +130,4 @@ export type ChartDrawing = {
   text?: string;
 };
 
-export type AnyChartDrawing = ChartDrawing | TrendlineDrawing;
+export type AnyChartDrawing = ChartDrawing | TrendlineDrawing | FibonacciDrawing;
