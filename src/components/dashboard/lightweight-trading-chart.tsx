@@ -199,6 +199,40 @@ function getExtendedTrendlinePoints(
   };
 }
 
+function clipTrendlineSegmentToPlot(
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+  width: number,
+  height: number,
+) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  let tMin = 0;
+  let tMax = 1;
+
+  const clip = (p: number, q: number) => {
+    if (Math.abs(p) < 0.0001) return q >= 0;
+    const ratio = q / p;
+    if (p < 0) {
+      if (ratio > tMax) return false;
+      if (ratio > tMin) tMin = ratio;
+    } else {
+      if (ratio < tMin) return false;
+      if (ratio < tMax) tMax = ratio;
+    }
+    return true;
+  };
+
+  if (!clip(-dx, start.x) || !clip(dx, width - start.x) || !clip(-dy, start.y) || !clip(dy, height - start.y)) {
+    return null;
+  }
+
+  return {
+    start: { x: start.x + tMin * dx, y: start.y + tMin * dy },
+    end: { x: start.x + tMax * dx, y: start.y + tMax * dy },
+  };
+}
+
 function distanceToSegment(
   point: { x: number; y: number },
   start: { x: number; y: number },
@@ -944,18 +978,30 @@ export function LightweightTradingChart({
         const overlay = drawingOverlayRef.current;
         const width = overlay?.clientWidth ?? 0;
         const height = overlay?.clientHeight ?? 0;
+        const chart = mainChartRef.current;
+        const timeScaleWidth = chart?.timeScale().width();
+        const plotWidth = Math.max(
+          0,
+          Math.min(width, timeScaleWidth ?? Math.max(0, width - 78)),
+        );
+        const axisLabelWidth = Math.max(0, width - plotWidth);
+        const trendlineClipId = `trendline-clip-${drawing.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
         const segment = getExtendedTrendlinePoints(
           points[0],
           points[1],
-          width,
+          plotWidth,
           height,
           drawing.style.extendLeft,
           drawing.style.extendRight,
         );
+        const visibleSegment = clipTrendlineSegmentToPlot(segment.start, segment.end, plotWidth, height);
+        if (!visibleSegment) {
+          return null;
+        }
         const dash = getTrendlineStrokeDash(drawing.style);
         const opacity = Math.max(0, Math.min(1, drawing.style.opacity));
-        const dx = segment.end.x - segment.start.x;
-        const dy = segment.end.y - segment.start.y;
+        const dx = visibleSegment.end.x - visibleSegment.start.x;
+        const dy = visibleSegment.end.y - visibleSegment.start.y;
         const length = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
         const arrow = (point: { x: number; y: number }, direction: 1 | -1) => {
           const ux = (dx / length) * direction;
@@ -970,8 +1016,8 @@ export function LightweightTradingChart({
           ? (priceChange / drawing.points[0].price) * 100
           : null;
         const midpoint = {
-          x: (points[0].x + points[1].x) / 2,
-          y: (points[0].y + points[1].y) / 2,
+          x: (visibleSegment.start.x + visibleSegment.end.x) / 2,
+          y: (visibleSegment.start.y + visibleSegment.end.y) / 2,
         };
         const endpointDx = points[1].x - points[0].x;
         const endpointDy = points[1].y - points[0].y;
@@ -984,9 +1030,9 @@ export function LightweightTradingChart({
         }
         const statsWidth = 180;
         const statsHeight = 28;
-        const statsCenterX = midpoint.x + normalX * 20;
-        const statsCenterY = midpoint.y + normalY * 20;
-        const statsX = Math.max(0, Math.min(width - statsWidth, statsCenterX - statsWidth / 2));
+        const statsCenterX = midpoint.x + normalX * 10;
+        const statsCenterY = midpoint.y + normalY * 10;
+        const statsX = Math.max(0, Math.min(plotWidth - statsWidth, statsCenterX - statsWidth / 2));
         const statsY = Math.max(0, Math.min(height - statsHeight, statsCenterY - statsHeight / 2));
         const statsText = [
           drawing.stats.showPriceChange ? formatSignedLegendValue(priceChange) : null,
@@ -995,7 +1041,6 @@ export function LightweightTradingChart({
             : null,
         ].filter(Boolean).join(" ");
         const showAxisMarkers = (selectedDrawingId === drawing.id && !isDraft) || (isDraft && points.length >= 2);
-        const axisLabelWidth = 78;
         const timeLabelWidth = 104;
         const axisLabelHeight = 20;
         const firstPriceLabelY = Math.max(0, Math.min(height - axisLabelHeight, points[0].y - axisLabelHeight / 2));
@@ -1005,27 +1050,34 @@ export function LightweightTradingChart({
 
         return (
           <g key={drawing.id} opacity={opacity}>
-            <line
-              x1={segment.start.x}
-              y1={segment.start.y}
-              x2={segment.end.x}
-              y2={segment.end.y}
-              stroke="transparent"
-              strokeWidth={Math.max(10, drawing.style.width + 8)}
-              pointerEvents="stroke"
-            />
-            <line
-              x1={segment.start.x}
-              y1={segment.start.y}
-              x2={segment.end.x}
-              y2={segment.end.y}
-              stroke={drawing.style.color}
-              strokeWidth={drawing.style.width}
-              strokeDasharray={dash}
-              strokeLinecap="round"
-            />
-            {drawing.style.leftEnd === "arrow" ? <polygon points={arrow(segment.start, 1)} fill={drawing.style.color} /> : null}
-            {drawing.style.rightEnd === "arrow" ? <polygon points={arrow(segment.end, -1)} fill={drawing.style.color} /> : null}
+            <defs>
+              <clipPath id={trendlineClipId}>
+                <rect x={0} y={0} width={plotWidth} height={height} />
+              </clipPath>
+            </defs>
+            <g clipPath={`url(#${trendlineClipId})`}>
+              <line
+                x1={visibleSegment.start.x}
+                y1={visibleSegment.start.y}
+                x2={visibleSegment.end.x}
+                y2={visibleSegment.end.y}
+                stroke="transparent"
+                strokeWidth={Math.max(10, drawing.style.width + 8)}
+                pointerEvents="stroke"
+              />
+              <line
+                x1={visibleSegment.start.x}
+                y1={visibleSegment.start.y}
+                x2={visibleSegment.end.x}
+                y2={visibleSegment.end.y}
+                stroke={drawing.style.color}
+                strokeWidth={drawing.style.width}
+                strokeDasharray={dash}
+                strokeLinecap="round"
+              />
+              {drawing.style.leftEnd === "arrow" ? <polygon points={arrow(visibleSegment.start, 1)} fill={drawing.style.color} /> : null}
+              {drawing.style.rightEnd === "arrow" ? <polygon points={arrow(visibleSegment.end, -1)} fill={drawing.style.color} /> : null}
+            </g>
             {drawing.stats.visible ? (
               <foreignObject
                 x={statsX}
@@ -1060,8 +1112,8 @@ export function LightweightTradingChart({
               <>
                 {[{ point: points[0], y: firstPriceLabelY, value: drawing.points[0].price }, { point: points[1], y: secondPriceLabelY, value: drawing.points[1].price }].map((item, index) => (
                   <g key={`${drawing.id}-price-axis-${index}`} pointerEvents="none">
-                    <rect x={width - axisLabelWidth} y={item.y} width={axisLabelWidth} height={axisLabelHeight} rx="2" fill={drawing.style.color} />
-                    <text x={width - axisLabelWidth + 5} y={item.y + 14} fill="#FFFFFF" fontSize="11" fontWeight="500">{formatTrendlinePrice(item.value)}</text>
+                    <rect x={plotWidth} y={item.y} width={axisLabelWidth} height={axisLabelHeight} rx="2" fill={drawing.style.color} />
+                    <text x={plotWidth + 5} y={item.y + 14} fill="#FFFFFF" fontSize="11" fontWeight="500">{formatTrendlinePrice(item.value)}</text>
                   </g>
                 ))}
                 {[{ x: firstTimeLabelX, time: drawing.points[0].time }, { x: secondTimeLabelX, time: drawing.points[1].time }].map((item, index) => (
@@ -1261,6 +1313,11 @@ export function LightweightTradingChart({
     syncCharts(mainChart, subChart);
     syncCharts(subChart, mainChart);
 
+    const refreshDrawingOverlay = () => setOverlayRevision((current) => current + 1);
+    mainContainer.addEventListener("pointermove", refreshDrawingOverlay);
+    mainContainer.addEventListener("wheel", refreshDrawingOverlay, { passive: true });
+    window.addEventListener("resize", refreshDrawingOverlay);
+
     const resizeObserver = new ResizeObserver(() => {
       const mainWidth = mainContainer.clientWidth;
       const mainHeight = mainContainer.clientHeight;
@@ -1290,6 +1347,9 @@ export function LightweightTradingChart({
 
     return () => {
       resizeObserver.disconnect();
+      mainContainer.removeEventListener("pointermove", refreshDrawingOverlay);
+      mainContainer.removeEventListener("wheel", refreshDrawingOverlay);
+      window.removeEventListener("resize", refreshDrawingOverlay);
       mainChart.remove();
       subChart.remove();
       mainChartRef.current = null;
