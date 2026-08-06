@@ -30,7 +30,7 @@ export type ChartToolId =
   | "text"
   | "ruler";
 
-export type ChartIndicatorId = "ema20" | "ema50" | "vwap" | "rolling-vwap";
+export type ChartIndicatorId = "ema" | "vwap";
 
 export type ChartPoint = {
   time: number;

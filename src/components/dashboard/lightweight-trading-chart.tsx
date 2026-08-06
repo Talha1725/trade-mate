@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import {
-  AreaSeries,
   CandlestickSeries,
   ColorType,
   CrosshairMode,
@@ -23,8 +22,6 @@ import {
   buildAlignedCompareSeries,
   calculateEma,
   calculateRollingVwap,
-  calculateSessionVwap,
-  normalizeIndicatorPanelValues,
 } from "@/lib/utils/chart-indicators";
 import { mergeLiveQuoteIntoCandles } from "@/lib/utils/merge-live-quote-candles";
 import { calculateFibPrice, DEFAULT_FIBONACCI_LEVELS, formatFibonacciLevelLabel } from "@/lib/utils/fibonacci";
@@ -55,7 +52,6 @@ const CANDLE_UP = "#10B981";
 const CANDLE_DOWN = "#EF4444";
 const EMA50_COLOR = "#3B82F6";
 const VWAP_COLOR = "#FF8000";
-const ROLLING_VWAP_COLOR = "#03D5D5";
 const COMPARE_LINE_COLOR = "#C084FC";
 const TRENDLINE_DEFAULT_STYLE = {
   color: "#2962FF",
@@ -378,10 +374,8 @@ export function LightweightTradingChart({
   const mainSeriesRef = React.useRef<ISeriesApi<"Candlestick" | "Line" | "Area">[]>([]);
   const subSeriesRef = React.useRef<ISeriesApi<"Area">[]>([]);
   const candleSeriesRef = React.useRef<ISeriesApi<"Candlestick"> | null>(null);
-  const ema20SeriesRef = React.useRef<ISeriesApi<"Line"> | null>(null);
-  const ema50SeriesRef = React.useRef<ISeriesApi<"Area"> | null>(null);
+  const emaSeriesRef = React.useRef<ISeriesApi<"Line"> | null>(null);
   const vwapSeriesRef = React.useRef<ISeriesApi<"Line"> | null>(null);
-  const rollingVwapSeriesRef = React.useRef<ISeriesApi<"Area"> | null>(null);
   const priceLineRef = React.useRef<ReturnType<ISeriesApi<"Candlestick">["createPriceLine"]> | null>(null);
   const priceLabelRef = React.useRef<HTMLDivElement>(null);
   const lastCloseRef = React.useRef<number | null>(null);
@@ -389,6 +383,7 @@ export function LightweightTradingChart({
   const drawingOverlayRef = React.useRef<SVGSVGElement>(null);
   const [activeTool, setActiveTool] = React.useState<ChartToolId>("crosshair");
   const [enabledIndicators, setEnabledIndicators] = React.useState<ChartIndicatorId[]>([]);
+  const [indicatorPeriods, setIndicatorPeriods] = React.useState({ ema: 20, vwap: 20 });
   const [magnetMode, setMagnetMode] = React.useState<MagnetMode>("off");
   const [magnetLastEnabledMode, setMagnetLastEnabledMode] = React.useState<"weak" | "strong">("weak");
   const [magnetThresholdPx] = React.useState(12);
@@ -2006,10 +2001,8 @@ export function LightweightTradingChart({
       mainSeriesRef.current = [];
       subSeriesRef.current = [];
       candleSeriesRef.current = null;
-      ema20SeriesRef.current = null;
-      ema50SeriesRef.current = null;
+      emaSeriesRef.current = null;
       vwapSeriesRef.current = null;
-      rollingVwapSeriesRef.current = null;
       priceLineRef.current = null;
       lastCloseRef.current = null;
     };
@@ -2040,10 +2033,8 @@ export function LightweightTradingChart({
     subSeriesRef.current = [];
 
     candleSeriesRef.current = null;
-    ema20SeriesRef.current = null;
-    ema50SeriesRef.current = null;
+    emaSeriesRef.current = null;
     vwapSeriesRef.current = null;
-    rollingVwapSeriesRef.current = null;
     priceLineRef.current = null;
     lastCloseRef.current = null;
 
@@ -2074,33 +2065,17 @@ export function LightweightTradingChart({
       wickDownColor: CANDLE_DOWN,
     });
 
-    const ema20 = enabledIndicators.includes("ema20")
-      ? buildIndicatorSeries(displayCandles, calculateEma(displayCandles.map((candle) => candle.close), 20))
-      : [];
-    const ema50 = enabledIndicators.includes("ema50")
-      ? buildIndicatorSeries(displayCandles, calculateEma(displayCandles.map((candle) => candle.close), 50))
+    const ema = enabledIndicators.includes("ema")
+      ? buildIndicatorSeries(displayCandles, calculateEma(displayCandles.map((candle) => candle.close), indicatorPeriods.ema))
       : [];
     const vwapTrack = enabledIndicators.includes("vwap")
-      ? buildIndicatorSeries(displayCandles, calculateSessionVwap(displayCandles))
-      : [];
-    const rollingVwapValues = enabledIndicators.includes("rolling-vwap")
-      ? calculateRollingVwap(displayCandles, 20)
+      ? buildIndicatorSeries(displayCandles, calculateRollingVwap(displayCandles, indicatorPeriods.vwap))
       : [];
 
-    const ema50AreaSeries = enabledIndicators.includes("ema50") ? mainChart.addSeries(AreaSeries, {
+    const emaSeries = enabledIndicators.includes("ema") ? mainChart.addSeries(LineSeries, {
       priceScaleId: "right",
-      lineColor: EMA50_COLOR,
-      topColor: "rgba(59, 130, 246, 0.22)",
-      bottomColor: "rgba(59, 130, 246, 0.01)",
-      lineWidth: 1,
-      priceLineVisible: false,
-      lastValueVisible: false,
-    }) : null;
-
-    const ema20Series = enabledIndicators.includes("ema20") ? mainChart.addSeries(LineSeries, {
-      priceScaleId: "right",
-      color: CANDLE_UP,
-      lineWidth: 1,
+      color: EMA50_COLOR,
+      lineWidth: 2,
       priceLineVisible: false,
       lastValueVisible: false,
     }) : null;
@@ -2136,24 +2111,13 @@ export function LightweightTradingChart({
       borderColor: "rgba(192,132,252,0.35)",
     });
 
-    const rollingVwapPanelValues = normalizeIndicatorPanelValues(rollingVwapValues, 12);
-    const rollingVwapArea = enabledIndicators.includes("rolling-vwap") ? subChart.addSeries(AreaSeries, {
-      lineColor: ROLLING_VWAP_COLOR,
-      topColor: "rgba(3, 213, 213, 0.5)",
-      bottomColor: "rgba(3, 213, 213, 0.02)",
-      lineWidth: 2,
-      priceLineVisible: false,
-      lastValueVisible: false,
-    }) : null;
-
     mainSeriesRef.current = [
-      ...(ema50AreaSeries ? [ema50AreaSeries] : []),
-      ...(ema20Series ? [ema20Series] : []),
+      ...(emaSeries ? [emaSeries] : []),
       candleSeries,
       ...(vwapSeries ? [vwapSeries] : []),
       ...(compareSeries ? [compareSeries] : []),
     ];
-    subSeriesRef.current = rollingVwapArea ? [rollingVwapArea] : [];
+    subSeriesRef.current = [];
 
     const candleData = displayCandles.map((candle) => ({
       time: toSeriesTime(candle.time),
@@ -2164,8 +2128,7 @@ export function LightweightTradingChart({
     }));
 
     candleSeries.setData(candleData);
-    ema20Series?.setData(ema20.map((point) => ({ time: toSeriesTime(point.time), value: point.value })));
-    ema50AreaSeries?.setData(ema50.map((point) => ({ time: toSeriesTime(point.time), value: point.value })));
+    emaSeries?.setData(ema.map((point) => ({ time: toSeriesTime(point.time), value: point.value })));
     vwapSeries?.setData(vwapTrack.map((point) => ({ time: toSeriesTime(point.time), value: point.value })));
 
     if (compareSeries && compareTrack.length > 0) {
@@ -2174,18 +2137,9 @@ export function LightweightTradingChart({
       );
     }
 
-    rollingVwapArea?.setData(
-      displayCandles.map((candle, index) => ({
-        time: toSeriesTime(candle.time),
-        value: rollingVwapPanelValues[index] ?? 0,
-      })),
-    );
-
     candleSeriesRef.current = candleSeries;
-    ema20SeriesRef.current = ema20Series;
-    ema50SeriesRef.current = ema50AreaSeries;
+    emaSeriesRef.current = emaSeries;
     vwapSeriesRef.current = vwapSeries;
-    rollingVwapSeriesRef.current = rollingVwapArea;
 
     const lastClose = displayCandles[displayCandles.length - 1]?.close;
     lastCloseRef.current = lastClose ?? null;
@@ -2239,7 +2193,7 @@ export function LightweightTradingChart({
       cancelAnimationFrame(labelFrameId);
       mainChart.timeScale().unsubscribeVisibleLogicalRangeChange(updateLastPriceLabel);
     };
-  }, [chartDataKey, displayCompareCandles, enabledIndicators, normalizedCompareSymbol, displayCandles]);
+  }, [chartDataKey, displayCompareCandles, enabledIndicators, indicatorPeriods, normalizedCompareSymbol, displayCandles]);
 
   React.useEffect(() => {
     const series = candleSeriesRef.current;
@@ -2265,20 +2219,11 @@ export function LightweightTradingChart({
       close: last.close,
     });
 
-    const ema20 = buildIndicatorSeries(merged, calculateEma(merged.map((candle) => candle.close), 20));
-    const ema50 = buildIndicatorSeries(merged, calculateEma(merged.map((candle) => candle.close), 50));
-    const vwap = buildIndicatorSeries(merged, calculateSessionVwap(merged));
-    const rollingVwap = normalizeIndicatorPanelValues(calculateRollingVwap(merged, 20), 12);
+    const ema = buildIndicatorSeries(merged, calculateEma(merged.map((candle) => candle.close), indicatorPeriods.ema));
+    const vwap = buildIndicatorSeries(merged, calculateRollingVwap(merged, indicatorPeriods.vwap));
 
-    ema20SeriesRef.current?.setData(ema20.map((point) => ({ time: toSeriesTime(point.time), value: point.value })));
-    ema50SeriesRef.current?.setData(ema50.map((point) => ({ time: toSeriesTime(point.time), value: point.value })));
+    emaSeriesRef.current?.setData(ema.map((point) => ({ time: toSeriesTime(point.time), value: point.value })));
     vwapSeriesRef.current?.setData(vwap.map((point) => ({ time: toSeriesTime(point.time), value: point.value })));
-    rollingVwapSeriesRef.current?.setData(
-      merged.map((candle, index) => ({
-        time: toSeriesTime(candle.time),
-        value: rollingVwap[index] ?? 0,
-      })),
-    );
 
     if (priceLineRef.current) {
       priceLineRef.current.applyOptions({ price: last.close });
@@ -2295,7 +2240,7 @@ export function LightweightTradingChart({
     }
 
     syncLastPriceLabel(series, last.close, priceLabelRef.current, symbol);
-  }, [candles, effectiveLiveQuote, timeframe]);
+  }, [candles, effectiveLiveQuote, indicatorPeriods, timeframe]);
 
   const selectedFibonacci = selectedDrawingId
     ? drawings.find((drawing): drawing is FibonacciDrawing => drawing.id === selectedDrawingId && drawing.tool === "fibonacci")
@@ -2516,6 +2461,41 @@ export function LightweightTradingChart({
                 </div>
               );
             })}
+            {enabledIndicators.length > 0 ? (
+              <div
+                className="pointer-events-auto absolute left-3 top-3 z-20 flex items-center gap-2 rounded-md border border-white/20 bg-black/90 px-2 py-1.5 text-[11px] text-white shadow-lg"
+                onPointerDown={(event) => event.stopPropagation()}
+              >
+                {enabledIndicators.includes("ema") ? (
+                  <label className="flex items-center gap-1.5 text-[#3B82F6]">
+                    <span>EMA</span>
+                    <input
+                      aria-label="EMA period"
+                      type="number"
+                      min={1}
+                      max={500}
+                      value={indicatorPeriods.ema}
+                      onChange={(event) => setIndicatorPeriods((current) => ({ ...current, ema: Math.max(1, Math.min(500, Number(event.target.value) || 1)) }))}
+                      className="w-12 appearance-none rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-center text-white outline-none focus:border-[#3B82F6] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
+                  </label>
+                ) : null}
+                {enabledIndicators.includes("vwap") ? (
+                  <label className="flex items-center gap-1.5 text-[#FF8000]">
+                    <span>VWAP</span>
+                    <input
+                      aria-label="VWAP period"
+                      type="number"
+                      min={1}
+                      max={500}
+                      value={indicatorPeriods.vwap}
+                      onChange={(event) => setIndicatorPeriods((current) => ({ ...current, vwap: Math.max(1, Math.min(500, Number(event.target.value) || 1)) }))}
+                      className="w-12 appearance-none rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-center text-white outline-none focus:border-[#FF8000] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
+                  </label>
+                ) : null}
+              </div>
+            ) : null}
             {textEditor && textEditorPixel ? (
               <input
                 autoFocus
@@ -2554,10 +2534,7 @@ export function LightweightTradingChart({
             ) : null}
           </div>
 
-          <div className={cn(
-            "h-[140px] border-t border-white/10",
-            !enabledIndicators.includes("rolling-vwap") && "hidden",
-          )}>
+          <div className="hidden h-[140px] border-t border-white/10">
             <div ref={subContainerRef} className="h-full w-full [&_.tv-lightweight-charts]:bg-transparent" />
           </div>
         </div>

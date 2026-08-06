@@ -4,7 +4,6 @@ import {
   Brush,
   ChartSpline,
   Crosshair,
-  GitBranch,
   Magnet,
   PenLine,
   Ruler,
@@ -13,7 +12,6 @@ import {
   RotateCcw,
   Undo2,
   Redo2,
-  Waves,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
@@ -38,10 +36,8 @@ const TOOLBAR_ITEMS = [
 ] as const;
 
 const INDICATOR_ITEMS = [
-  { id: "ema20", icon: TrendingUp, label: "EMA 20" },
-  { id: "ema50", icon: GitBranch, label: "EMA 50" },
+  { id: "ema", icon: TrendingUp, label: "EMA" },
   { id: "vwap", icon: Ruler, label: "VWAP" },
-  { id: "rolling-vwap", icon: Waves, label: "Rolling VWAP" },
 ] as const;
 
 type ChartToolbarProps = {
