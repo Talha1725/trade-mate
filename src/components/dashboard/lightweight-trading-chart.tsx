@@ -30,8 +30,10 @@ import {
 import { mergeLiveQuoteIntoCandles } from "@/lib/utils/merge-live-quote-candles";
 import { calculateFibPrice, DEFAULT_FIBONACCI_LEVELS, formatFibonacciLevelLabel } from "@/lib/utils/fibonacci";
 import { resolveMagnetSnap, validateMagnetSettings } from "@/lib/utils/magnet-snap";
+import { getTradingSymbolAliases } from "@/lib/utils/market-symbol-icon";
 import { cn } from "@/lib/utils";
 import type { ChartCandle } from "@/types/eodhd";
+import type { PortfolioPosition, PortfolioTrade } from "@/types/dashboard";
 import type {
   AnyChartDrawing,
   ChartDrawing,
@@ -48,7 +50,6 @@ const CHART_BACKGROUND = "transparent";
 const GRID_COLOR = "rgba(255, 255, 255, 0.06)";
 const TEXT_COLOR = "#ffffff";
 const LAST_PRICE_COLOR = "#22E0A2";
-const MAIN_CHART_AXIS_FONT_SIZE = 16;
 const SUB_CHART_X_AXIS_FONT_SIZE = 10;
 const SUB_CHART_AXIS_COLOR = "#ffffff";
 const CANDLE_UP = "#10B981";
@@ -161,6 +162,27 @@ function formatTrendlinePrice(value: number) {
   });
 }
 
+function isForexSymbol(symbol: string) {
+  const normalized = symbol.trim().toUpperCase().replace(/[^A-Z]/g, "");
+  const currencies = new Set(["AUD", "CAD", "CHF", "EUR", "GBP", "JPY", "NZD", "USD"]);
+  return normalized.length === 6
+    && currencies.has(normalized.slice(0, 3))
+    && currencies.has(normalized.slice(3));
+}
+
+function getChartPriceFormat(symbol: string) {
+  return isForexSymbol(symbol)
+    ? { type: "price" as const, precision: 5, minMove: 0.00001 }
+    : { type: "price" as const, precision: 2, minMove: 0.01 };
+}
+
+function formatChartPrice(value: number, symbol: string) {
+  return value.toLocaleString("en-US", {
+    minimumFractionDigits: isForexSymbol(symbol) ? 5 : 2,
+    maximumFractionDigits: isForexSymbol(symbol) ? 5 : 2,
+  });
+}
+
 function formatTrendlineTime(time: number) {
   const date = new Date(time * 1000);
   const day = String(date.getUTCDate()).padStart(2, "0");
@@ -169,6 +191,26 @@ function formatTrendlineTime(time: number) {
   const hours = String(date.getUTCHours()).padStart(2, "0");
   const minutes = String(date.getUTCMinutes()).padStart(2, "0");
   return `${day} ${month} '${year} ${hours}:${minutes}`;
+}
+
+function parseTradeTime(value: string | null | undefined) {
+  if (!value) return null;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp / 1000 : null;
+}
+
+function formatTradeTooltipTime(value: string | null | undefined) {
+  if (!value) return "--";
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return value;
+  return new Date(timestamp).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
+}
+
+function nearestCandleTime(time: number, candles: ChartCandle[]) {
+  if (candles.length === 0) return time;
+  return candles.reduce((nearest, candle) => (
+    Math.abs(candle.time - time) < Math.abs(nearest - time) ? candle.time : nearest
+  ), candles[0].time);
 }
 
 function toSeriesTime(time: number) {
@@ -302,6 +344,7 @@ function syncLastPriceLabel(
   series: ISeriesApi<"Candlestick">,
   price: number,
   labelElement: HTMLDivElement | null,
+  symbol: string,
 ) {
   if (!labelElement) {
     return;
@@ -316,7 +359,7 @@ function syncLastPriceLabel(
 
   labelElement.style.display = "block";
   labelElement.style.top = `${top}px`;
-  labelElement.textContent = formatLegendValue(price);
+  labelElement.textContent = formatChartPrice(price, symbol);
 }
 
 export function LightweightTradingChart({
@@ -324,6 +367,8 @@ export function LightweightTradingChart({
   compareSymbol = null,
   timeframe = "4H",
   liveQuote = null,
+  trades = [],
+  tradePositions = [],
   className,
 }: LightweightTradingChartProps) {
   const mainContainerRef = React.useRef<HTMLDivElement>(null);
@@ -355,6 +400,7 @@ export function LightweightTradingChart({
   const [renderedDrawings, setRenderedDrawings] = React.useState<React.ReactNode[]>([]);
   const [isDrawing, setIsDrawing] = React.useState(false);
   const [selectedDrawingId, setSelectedDrawingId] = React.useState<string | null>(null);
+  const [hoveredTradeMarkerId, setHoveredTradeMarkerId] = React.useState<string | null>(null);
   const [hoveredTrendlineId, setHoveredTrendlineId] = React.useState<string | null>(null);
   const [hoveredTrendlineEndpoint, setHoveredTrendlineEndpoint] = React.useState<0 | 1 | null>(null);
   const [textEditor, setTextEditor] = React.useState<{ point: ChartPoint; value: string; pixel: { x: number; y: number }; editingId?: string } | null>(null);
@@ -1824,7 +1870,7 @@ export function LightweightTradingChart({
       layout: {
         background: { type: ColorType.Solid, color: CHART_BACKGROUND },
         textColor: TEXT_COLOR,
-        fontSize: MAIN_CHART_AXIS_FONT_SIZE,
+        fontSize: 12,
         fontFamily: "inherit",
       },
       grid: {
@@ -1834,6 +1880,7 @@ export function LightweightTradingChart({
       rightPriceScale: {
         visible: true,
         borderColor: "rgba(255,255,255,0.08)",
+        minimumWidth: 64,
       },
       leftPriceScale: {
         visible: false,
@@ -1930,7 +1977,7 @@ export function LightweightTradingChart({
       const lastClose = lastCloseRef.current;
 
       if (series && lastClose !== null) {
-        syncLastPriceLabel(series, lastClose, priceLabelRef.current);
+        syncLastPriceLabel(series, lastClose, priceLabelRef.current, symbol);
       }
 
       setOverlayRevision((current) => current + 1);
@@ -1968,6 +2015,12 @@ export function LightweightTradingChart({
       return;
     }
 
+    mainChart.applyOptions({
+      localization: {
+        priceFormatter: (price: number) => formatChartPrice(price, symbol),
+      },
+    });
+
     for (const series of mainSeriesRef.current) {
       mainChart.removeSeries(series);
     }
@@ -2004,6 +2057,7 @@ export function LightweightTradingChart({
 
     const candleSeries = mainChart.addSeries(CandlestickSeries, {
       priceScaleId: "right",
+      priceFormat: getChartPriceFormat(symbol),
       upColor: CANDLE_UP,
       downColor: CANDLE_DOWN,
       borderUpColor: CANDLE_UP,
@@ -2138,7 +2192,7 @@ export function LightweightTradingChart({
         title: "",
       });
 
-      syncLastPriceLabel(candleSeries, lastClose, priceLabelRef.current);
+        syncLastPriceLabel(candleSeries, lastClose, priceLabelRef.current, symbol);
     }
 
     let labelFrameId = 0;
@@ -2152,7 +2206,7 @@ export function LightweightTradingChart({
 
       cancelAnimationFrame(labelFrameId);
       labelFrameId = requestAnimationFrame(() => {
-        syncLastPriceLabel(candleSeries, price, priceLabelRef.current);
+        syncLastPriceLabel(candleSeries, price, priceLabelRef.current, symbol);
       });
     };
 
@@ -2231,7 +2285,7 @@ export function LightweightTradingChart({
       });
     }
 
-    syncLastPriceLabel(series, last.close, priceLabelRef.current);
+    syncLastPriceLabel(series, last.close, priceLabelRef.current, symbol);
   }, [candles, effectiveLiveQuote, timeframe]);
 
   const selectedFibonacci = selectedDrawingId
@@ -2239,6 +2293,87 @@ export function LightweightTradingChart({
     : null;
   const textEditorPixel = textEditor?.pixel ?? null;
   const snapPixel = snapIndicator ? toPixelPoint(snapIndicator.point) : null;
+  const tradeMarkers = React.useMemo(() => {
+    const chartAliases = new Set(getTradingSymbolAliases(symbol));
+    const tradePositionIds = new Set(trades.map((trade) => trade.positionId).filter(Boolean));
+    const fallbackTrades: PortfolioTrade[] = tradePositions
+      .filter((position) => position.status === "OPEN" && !tradePositionIds.has(position.id))
+      .map((position: PortfolioPosition) => ({
+        id: position.tradeId ?? position.id,
+        accountId: position.accountId,
+        userId: null,
+        symbol: position.symbol,
+        internalSymbol: position.internalSymbol,
+        direction: position.direction,
+        lots: position.lots,
+        entryPrice: position.entryPrice,
+        exitPrice: null,
+        stopLoss: position.stopLoss,
+        takeProfit: position.takeProfit,
+        openedAt: position.openedAt,
+        closedAt: null,
+        pnl: position.floatingPnl,
+        status: "OPEN",
+        source: position.source,
+        notes: null,
+        positionId: position.id,
+      }));
+    const markers: Array<{
+      id: string;
+      trade: PortfolioTrade;
+      kind: "entry" | "exit";
+      label: "BUY" | "SELL";
+      time: number;
+      price: number;
+      pixel: { x: number; y: number };
+    }> = [];
+
+    for (const trade of [...trades, ...fallbackTrades]) {
+      const tradeAliases = new Set([
+        ...getTradingSymbolAliases(trade.symbol),
+        ...getTradingSymbolAliases(trade.internalSymbol),
+      ]);
+      if (![...tradeAliases].some((alias) => chartAliases.has(alias))) continue;
+
+      const entryTime = parseTradeTime(trade.openedAt);
+      const entryPrice = Number(trade.entryPrice);
+      if (entryTime !== null && Number.isFinite(entryPrice)) {
+        const pixel = toPixelPoint({ time: entryTime, price: entryPrice })
+          ?? toPixelPoint({ time: nearestCandleTime(entryTime, displayCandles), price: entryPrice });
+        if (pixel) {
+          markers.push({
+            id: `${trade.id}-entry`,
+            trade,
+            kind: "entry",
+            label: trade.direction === "BUY" ? "BUY" : "SELL",
+            time: entryTime,
+            price: entryPrice,
+            pixel,
+          });
+        }
+      }
+
+      const exitTime = parseTradeTime(trade.closedAt);
+      const exitPrice = trade.exitPrice === null ? null : Number(trade.exitPrice);
+      if (exitTime !== null && exitPrice !== null && Number.isFinite(exitPrice)) {
+        const pixel = toPixelPoint({ time: exitTime, price: exitPrice })
+          ?? toPixelPoint({ time: nearestCandleTime(exitTime, displayCandles), price: exitPrice });
+        if (pixel) {
+          markers.push({
+            id: `${trade.id}-exit`,
+            trade,
+            kind: "exit",
+            label: trade.direction === "BUY" ? "SELL" : "BUY",
+            time: exitTime,
+            price: exitPrice,
+            pixel,
+          });
+        }
+      }
+    }
+
+    return markers;
+  }, [displayCandles, symbol, toPixelPoint, tradePositions, trades]);
 
   return (
     <div
@@ -2328,6 +2463,50 @@ export function LightweightTradingChart({
                 <circle cx={snapPixel.x} cy={snapPixel.y} r="5" fill="#FFFFFF" stroke="#2962FF" strokeWidth="2" pointerEvents="none" />
               ) : null}
             </svg>
+            {tradeMarkers.map((marker) => {
+              const isBuy = marker.label === "BUY";
+              const color = isBuy ? "#22E0A2" : "#EF4444";
+              const isHovered = hoveredTradeMarkerId === marker.id;
+              const tooltipLeft = Math.min(Math.max(marker.pixel.x + 10, 4), 330);
+              const tooltipTop = Math.max(4, marker.pixel.y - 92);
+              return (
+                <div
+                  key={marker.id}
+                  className="pointer-events-auto absolute z-15"
+                  style={{ left: marker.pixel.x, top: marker.pixel.y, transform: "translate(-50%, -50%)" }}
+                  onPointerEnter={() => setHoveredTradeMarkerId(marker.id)}
+                  onPointerLeave={() => setHoveredTradeMarkerId((current) => current === marker.id ? null : current)}
+                >
+                  <button
+                    type="button"
+                    aria-label={`${marker.label} trade marker`}
+                    className="flex size-4 items-center justify-center rounded-full border-2 border-white shadow-[0_0_0_2px_rgba(0,0,0,0.55)]"
+                    style={{ backgroundColor: color }}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <span className="sr-only">{marker.label}</span>
+                  </button>
+                  {isHovered ? (
+                    <div
+                      className="pointer-events-none absolute w-56 rounded-md border px-3 py-2 text-[11px] text-white shadow-xl"
+                      style={{ left: tooltipLeft - marker.pixel.x, top: tooltipTop - marker.pixel.y, background: "rgba(8, 12, 18, 0.96)", borderColor: color }}
+                    >
+                      <div className="mb-1 flex items-center justify-between gap-3 font-semibold" style={{ color }}>
+                        <span>{marker.label} · {marker.kind === "entry" ? "Entry" : "Exit"}</span>
+                        <span>{marker.trade.symbol}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-white/70">
+                        <span>Price</span><span className="text-right text-white">{formatTrendlinePrice(marker.price)}</span>
+                        <span>Lots</span><span className="text-right text-white">{marker.trade.lots}</span>
+                        <span>P&amp;L</span><span className={`text-right ${Number(marker.trade.pnl) >= 0 ? "text-[#22E0A2]" : "text-[#EF4444]"}`}>{formatLegendValue(Number(marker.trade.pnl))}</span>
+                        <span>Status</span><span className="text-right text-white">{marker.trade.status}</span>
+                        <span>Time</span><span className="text-right text-white">{formatTradeTooltipTime(marker.kind === "entry" ? marker.trade.openedAt : marker.trade.closedAt)}</span>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
             {textEditor && textEditorPixel ? (
               <input
                 autoFocus

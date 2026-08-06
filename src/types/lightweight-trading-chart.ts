@@ -1,4 +1,5 @@
 import type { ChartLiveQuote } from "@/types/eodhd";
+import type { PortfolioPosition, PortfolioTrade } from "@/types/dashboard";
 import type { TradingTimeframe } from "@/types/trading-filter-bar";
 
 export type LightweightTradingChartProps = {
@@ -6,6 +7,8 @@ export type LightweightTradingChartProps = {
   compareSymbol?: string | null;
   timeframe?: TradingTimeframe;
   liveQuote?: ChartLiveQuote | null;
+  trades?: PortfolioTrade[];
+  tradePositions?: PortfolioPosition[];
   className?: string;
 };
 

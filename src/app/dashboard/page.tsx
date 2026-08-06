@@ -548,6 +548,8 @@ export default function DashboardPage() {
               compareSymbol={compareSymbol}
               timeframe={timeframe}
               liveQuote={chartLiveQuote}
+              trades={ledger?.trades ?? []}
+              tradePositions={snapshot?.positions ?? []}
             />
           </div>
 
