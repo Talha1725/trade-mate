@@ -1,4 +1,4 @@
-import type { ChartCandle, EodhdAssetQuote } from "@/types/eodhd";
+import type { ChartCandle, ChartLiveQuote } from "@/types/eodhd";
 import type { TradingTimeframe } from "@/types/trading-filter-bar";
 
 function getBucketSeconds(timeframe: TradingTimeframe) {
@@ -24,27 +24,34 @@ function getBucketSeconds(timeframe: TradingTimeframe) {
 
 function buildLiveCandle(
   bucketTime: number,
-  quote: Pick<EodhdAssetQuote, "price" | "open" | "high" | "low" | "volume">,
+  quote: ChartLiveQuote,
+  previous?: ChartCandle,
 ): ChartCandle {
+  const open = quote.open ?? previous?.open ?? quote.price;
+  const high = quote.high ?? previous?.high ?? quote.price;
+  const low = quote.low ?? previous?.low ?? quote.price;
+  const volume = quote.volume ?? previous?.volume ?? 0;
+
   return {
     time: bucketTime,
-    open: quote.open,
-    high: Math.max(quote.high, quote.price),
-    low: Math.min(quote.low, quote.price),
+    open,
+    high: Math.max(high, quote.price),
+    low: Math.min(low, quote.price),
     close: quote.price,
-    volume: quote.volume,
+    volume,
   };
 }
 
 export function mergeLiveQuoteIntoCandles(
   candles: ChartCandle[],
-  quote: Pick<EodhdAssetQuote, "price" | "open" | "high" | "low" | "volume">,
+  quote: ChartLiveQuote,
   timeframe: TradingTimeframe,
 ): ChartCandle[] {
   const bucketSeconds = getBucketSeconds(timeframe);
   const now = Math.floor(Date.now() / 1000);
   const bucketTime = Math.floor(now / bucketSeconds) * bucketSeconds;
-  const liveCandle = buildLiveCandle(bucketTime, quote);
+  const lastCandle = candles[candles.length - 1];
+  const liveCandle = buildLiveCandle(bucketTime, quote, lastCandle);
 
   if (candles.length === 0) {
     return [liveCandle];
@@ -67,7 +74,7 @@ export function mergeLiveQuoteIntoCandles(
         high: Math.max(last.high, liveCandle.high),
         low: Math.min(last.low, liveCandle.low),
         close: quote.price,
-        volume: Math.max(last.volume, quote.volume),
+        volume: Math.max(last.volume, liveCandle.volume),
       },
     ];
   }

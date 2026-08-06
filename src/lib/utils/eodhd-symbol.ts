@@ -11,6 +11,23 @@ const FOREX_PAIRS = new Set([
   "GBPJPY",
 ]);
 
+const CRYPTO_BASES = new Set([
+  "BTC",
+  "ETH",
+  "SOL",
+  "BNB",
+  "XRP",
+  "ADA",
+  "DOGE",
+  "AVAX",
+  "LINK",
+  "TON",
+  "TRX",
+  "DOT",
+  "LTC",
+  "SUI",
+]);
+
 export function resolveEodhdSymbol(symbol: string) {
   const normalized = symbol.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
 
@@ -21,6 +38,14 @@ export function resolveEodhdSymbol(symbol: string) {
   if (normalized.endsWith("USDT")) {
     const base = normalized.slice(0, -4);
     return `${base}-USD.CC`;
+  }
+
+  if (normalized.endsWith("USD")) {
+    const base = normalized.slice(0, -3);
+
+    if (CRYPTO_BASES.has(base)) {
+      return `${base}-USD.CC`;
+    }
   }
 
   if (normalized.endsWith("USD") && normalized.length > 6) {

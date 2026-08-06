@@ -223,6 +223,10 @@ export default function DashboardPage() {
       quotes.find((quote) => normalizedSymbols.has(normalizeTradingSymbol(quote.symbol))) ?? null
     );
   }, []);
+  const chartLiveQuote = React.useMemo(
+    () => resolveQuoteForSymbol(Object.values(liveQuotes), chartSymbol),
+    [chartSymbol, liveQuotes, resolveQuoteForSymbol],
+  );
 
   React.useEffect(() => {
     if (!token || !chartSymbol) {
@@ -543,6 +547,7 @@ export default function DashboardPage() {
               symbol={chartSymbol}
               compareSymbol={compareSymbol}
               timeframe={timeframe}
+              liveQuote={chartLiveQuote}
             />
           </div>
 

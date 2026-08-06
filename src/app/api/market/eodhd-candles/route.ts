@@ -21,6 +21,19 @@ function toUnixSecondsFromDate(value: string) {
   return Math.floor(new Date(`${value}T00:00:00Z`).getTime() / 1000);
 }
 
+function isValidCandle(candle: ChartCandle) {
+  const values = [candle.open, candle.high, candle.low, candle.close];
+
+  return (
+    values.every((value) => Number.isFinite(value) && value > 0) &&
+    candle.high >= candle.low &&
+    candle.high >= candle.open &&
+    candle.high >= candle.close &&
+    candle.low <= candle.open &&
+    candle.low <= candle.close
+  );
+}
+
 function mapIntradayBars(bars: EodhdIntradayBar[]): ChartCandle[] {
   return bars
     .map((bar) => ({
@@ -31,7 +44,7 @@ function mapIntradayBars(bars: EodhdIntradayBar[]): ChartCandle[] {
       close: Number(bar.close),
       volume: Number(bar.volume ?? 0),
     }))
-    .filter((bar) => Number.isFinite(bar.time))
+    .filter((bar) => Number.isFinite(bar.time) && isValidCandle(bar))
     .sort((left, right) => left.time - right.time);
 }
 
@@ -45,6 +58,7 @@ function mapEodBars(bars: EodhdEodBar[]): ChartCandle[] {
       close: Number(bar.close),
       volume: Number(bar.volume ?? 0),
     }))
+    .filter(isValidCandle)
     .sort((left, right) => left.time - right.time);
 }
 

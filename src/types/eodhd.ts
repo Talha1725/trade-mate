@@ -72,6 +72,16 @@ export type EodhdAssetQuote = {
   dataSource: "realtime" | "eod";
 };
 
+export type ChartLiveQuote = {
+  price: number;
+  open?: number | null;
+  high?: number | null;
+  low?: number | null;
+  volume?: number | null;
+  change?: number | null;
+  changePercent?: number | null;
+};
+
 export type EodhdQuotesResponse = {
   quotes: Record<string, EodhdAssetQuote>;
 };
