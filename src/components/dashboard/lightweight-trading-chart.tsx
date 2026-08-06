@@ -102,6 +102,27 @@ function formatSignedLegendValue(value: number) {
   return value < 0 ? `-${formatted}` : `+${formatted}`;
 }
 
+function formatTrendlinePrice(value: number) {
+  if (Math.abs(value) < 10) {
+    return value.toFixed(5);
+  }
+
+  return value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function formatTrendlineTime(time: number) {
+  const date = new Date(time * 1000);
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const month = date.toLocaleString("en-US", { month: "short", timeZone: "UTC" });
+  const year = String(date.getUTCFullYear()).slice(-2);
+  const hours = String(date.getUTCHours()).padStart(2, "0");
+  const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+  return `${day} ${month} '${year} ${hours}:${minutes}`;
+}
+
 function toSeriesTime(time: number) {
   return time as UTCTimestamp;
 }
@@ -245,17 +266,25 @@ export function LightweightTradingChart({
   const [drawings, setDrawings] = React.useState<AnyChartDrawing[]>([]);
   const [redoDrawings, setRedoDrawings] = React.useState<AnyChartDrawing[]>([]);
   const [draftPoints, setDraftPoints] = React.useState<ChartPoint[]>([]);
+  const [draftPreviewPoint, setDraftPreviewPoint] = React.useState<ChartPoint | null>(null);
   const [renderedDrawings, setRenderedDrawings] = React.useState<React.ReactNode[]>([]);
   const [isDrawing, setIsDrawing] = React.useState(false);
   const [selectedDrawingId, setSelectedDrawingId] = React.useState<string | null>(null);
   const [hoveredTrendlineId, setHoveredTrendlineId] = React.useState<string | null>(null);
   const [hoveredTrendlineEndpoint, setHoveredTrendlineEndpoint] = React.useState<0 | 1 | null>(null);
   const [isDraggingTrendline, setIsDraggingTrendline] = React.useState(false);
-  const draggingTrendlineRef = React.useRef<{ id: string; endpoint: 0 | 1 } | null>(null);
+  const draggingTrendlineRef = React.useRef<{
+    id: string;
+    mode: "endpoint" | "body";
+    endpoint?: 0 | 1;
+    start?: ChartPoint;
+    originalPoints?: [ChartPoint, ChartPoint];
+  } | null>(null);
   const draggingDraftTrendlineRef = React.useRef(false);
   const draftTrendlineAnchorRef = React.useRef<ChartPoint | null>(null);
   const draftTrendlineMovedRef = React.useRef(false);
   const draftTrendlinePointerStartRef = React.useRef<{ x: number; y: number } | null>(null);
+  const draftTrendlinePendingClickPointRef = React.useRef<ChartPoint | null>(null);
   const [overlayRevision, setOverlayRevision] = React.useState(0);
   const drawingsStorageKey = `trade-mate:chart-drawings:${symbol}:${timeframe}`;
   const drawingsHydratedRef = React.useRef(false);
@@ -406,6 +435,7 @@ export function LightweightTradingChart({
       ]);
       setRedoDrawings([]);
       setDraftPoints([]);
+      setDraftPreviewPoint(null);
     },
     [],
   );
@@ -432,6 +462,8 @@ export function LightweightTradingChart({
     setRedoDrawings([]);
     setSelectedDrawingId(drawing.id);
     setDraftPoints([]);
+    setDraftPreviewPoint(null);
+    setDraftPreviewPoint(null);
     draftTrendlineAnchorRef.current = null;
     setIsDrawing(false);
   }, []);
@@ -526,6 +558,11 @@ export function LightweightTradingChart({
         if (draftPoints.length === 1) {
           // The next pointer gesture extends the line from the fixed first
           // anchor. The endpoint is committed by the following click.
+          const clickPoint = getChartPoint(event);
+          if (clickPoint) {
+            draftTrendlinePendingClickPointRef.current = clickPoint;
+          }
+          setDraftPreviewPoint(null);
           draggingDraftTrendlineRef.current = true;
           draftTrendlineMovedRef.current = false;
           draftTrendlinePointerStartRef.current = { x: event.clientX, y: event.clientY };
@@ -541,7 +578,7 @@ export function LightweightTradingChart({
         if (draftPoints.length === 0) {
           const handle = findTrendlineHandleAtPoint(event);
           if (handle) {
-            draggingTrendlineRef.current = handle;
+            draggingTrendlineRef.current = { ...handle, mode: "endpoint" };
             setSelectedDrawingId(handle.id);
             setIsDraggingTrendline(true);
             return;
@@ -551,6 +588,16 @@ export function LightweightTradingChart({
 
           if (hitDrawingId) {
             setSelectedDrawingId(hitDrawingId);
+            const hitDrawing = drawings.find((drawing) => drawing.id === hitDrawingId);
+            if (hitDrawing?.tool === "trendline" && !hitDrawing.locked) {
+              draggingTrendlineRef.current = {
+                id: hitDrawing.id,
+                mode: "body",
+                start: point,
+                originalPoints: [...hitDrawing.points] as [ChartPoint, ChartPoint],
+              };
+              setIsDraggingTrendline(true);
+            }
             return;
           }
 
@@ -559,13 +606,17 @@ export function LightweightTradingChart({
 
         if (draftPoints.length === 0) {
           setDraftPoints([point]);
+          setDraftPreviewPoint(null);
           draftTrendlineAnchorRef.current = point;
+          draftTrendlinePendingClickPointRef.current = null;
           draggingDraftTrendlineRef.current = true;
           draftTrendlineMovedRef.current = false;
           draftTrendlinePointerStartRef.current = { x: event.clientX, y: event.clientY };
           setIsDrawing(true);
         } else {
-          commitTrendline([draftPoints[0], point]);
+          // The drag-release already fixed the second anchor. The following
+          // click only confirms the line and must not move that endpoint.
+          commitTrendline([draftPoints[0], draftPoints[1] ?? point]);
         }
 
         return;
@@ -604,7 +655,7 @@ export function LightweightTradingChart({
         return next;
       });
     },
-    [activeTool, commitDrawing, commitTrendline, draftPoints, findTrendlineAtPoint, findTrendlineHandleAtPoint, getChartPoint],
+    [activeTool, commitDrawing, commitTrendline, drawings, draftPoints, findTrendlineAtPoint, findTrendlineHandleAtPoint, getChartPoint],
   );
 
   const handleDrawingPointerMove = React.useCallback(
@@ -625,6 +676,7 @@ export function LightweightTradingChart({
             const anchor = draftTrendlineAnchorRef.current ?? current[0];
             return anchor ? [anchor, point] : current;
           });
+          setDraftPreviewPoint(null);
         }
         return;
       }
@@ -638,8 +690,21 @@ export function LightweightTradingChart({
               return drawing;
             }
 
+            if (draggingTrendline.mode === "body" && draggingTrendline.start && draggingTrendline.originalPoints) {
+              const timeDelta = point.time - draggingTrendline.start.time;
+              const priceDelta = point.price - draggingTrendline.start.price;
+              const points: [ChartPoint, ChartPoint] = draggingTrendline.originalPoints.map((original) => ({
+                ...original,
+                time: original.time + timeDelta,
+                price: original.price + priceDelta,
+              })) as [ChartPoint, ChartPoint];
+              return { ...drawing, points, updatedAt: Date.now() };
+            }
+
             const points: [ChartPoint, ChartPoint] = [...drawing.points] as [ChartPoint, ChartPoint];
-            points[draggingTrendline.endpoint] = point;
+            if (draggingTrendline.endpoint !== undefined) {
+              points[draggingTrendline.endpoint] = point;
+            }
             return { ...drawing, points, updatedAt: Date.now() };
           }));
         }
@@ -659,7 +724,7 @@ export function LightweightTradingChart({
 
       if (point && activeTool === "trendline" && draftPoints.length === 1) {
         // Keep the first anchor fixed and extend the preview line to the cursor.
-        setDraftPoints([draftPoints[0], point]);
+        setDraftPreviewPoint(point);
       } else if (point) {
         setDraftPoints((current) => [...current, point]);
       }
@@ -670,9 +735,19 @@ export function LightweightTradingChart({
   const handleDrawingPointerUp = React.useCallback(() => {
     if (draggingDraftTrendlineRef.current) {
       draggingDraftTrendlineRef.current = false;
+
+      if (!draftTrendlineMovedRef.current && draftTrendlinePendingClickPointRef.current && draftPoints[0]) {
+        commitTrendline([draftPoints[0], draftTrendlinePendingClickPointRef.current]);
+        draftTrendlinePendingClickPointRef.current = null;
+        draftTrendlinePointerStartRef.current = null;
+        setIsDrawing(false);
+        return;
+      }
+
       draftTrendlineAnchorRef.current = draftPoints[0] ?? draftTrendlineAnchorRef.current;
       draftTrendlineMovedRef.current = false;
       draftTrendlinePointerStartRef.current = null;
+      draftTrendlinePendingClickPointRef.current = null;
       setIsDrawing(false);
       return;
     }
@@ -700,8 +775,9 @@ export function LightweightTradingChart({
       commitDrawing(activeTool, draftPoints);
     } else {
       setDraftPoints([]);
+      setDraftPreviewPoint(null);
     }
-  }, [activeTool, commitDrawing, draftPoints, isDrawing]);
+  }, [activeTool, commitDrawing, commitTrendline, draftPoints, isDrawing]);
 
   React.useEffect(() => {
     const handleDraftPointerMove = (event: PointerEvent) => {
@@ -719,10 +795,11 @@ export function LightweightTradingChart({
 
       const point = getChartPoint(event as unknown as React.PointerEvent<SVGSVGElement>);
       if (point) {
-        setDraftPoints((current) => {
-          const anchor = draftTrendlineAnchorRef.current ?? current[0];
-          return anchor ? [anchor, point] : current;
-        });
+          setDraftPoints((current) => {
+            const anchor = draftTrendlineAnchorRef.current ?? current[0];
+            return anchor ? [anchor, point] : current;
+          });
+          setDraftPreviewPoint(null);
       }
     };
 
@@ -757,12 +834,14 @@ export function LightweightTradingChart({
     setRedoDrawings([]);
     setSelectedDrawingId(null);
     setDraftPoints([]);
+    setDraftPreviewPoint(null);
     setIsDrawing(false);
     draggingTrendlineRef.current = null;
     draggingDraftTrendlineRef.current = false;
     draftTrendlineAnchorRef.current = null;
     draftTrendlineMovedRef.current = false;
     draftTrendlinePointerStartRef.current = null;
+    draftTrendlinePendingClickPointRef.current = null;
     setIsDraggingTrendline(false);
 
     const chart = mainChartRef.current;
@@ -818,6 +897,7 @@ export function LightweightTradingChart({
       if (event.key === "Escape") {
         if (draftPoints.length > 0 || isDrawing) {
           setDraftPoints([]);
+          setDraftPreviewPoint(null);
           setIsDrawing(false);
           return;
         }
@@ -914,6 +994,14 @@ export function LightweightTradingChart({
             ? `(${percentChange < 0 ? "-" : "+"}${Math.abs(percentChange).toFixed(2)}%)`
             : null,
         ].filter(Boolean).join(" ");
+        const showAxisMarkers = (selectedDrawingId === drawing.id && !isDraft) || (isDraft && points.length >= 2);
+        const axisLabelWidth = 78;
+        const timeLabelWidth = 104;
+        const axisLabelHeight = 20;
+        const firstPriceLabelY = Math.max(0, Math.min(height - axisLabelHeight, points[0].y - axisLabelHeight / 2));
+        const secondPriceLabelY = Math.max(0, Math.min(height - axisLabelHeight, points[1].y - axisLabelHeight / 2));
+        const firstTimeLabelX = Math.max(0, Math.min(width - timeLabelWidth, points[0].x - timeLabelWidth / 2));
+        const secondTimeLabelX = Math.max(0, Math.min(width - timeLabelWidth, points[1].x - timeLabelWidth / 2));
 
         return (
           <g key={drawing.id} opacity={opacity}>
@@ -967,6 +1055,22 @@ export function LightweightTradingChart({
                   {statsText}
                 </div>
               </foreignObject>
+            ) : null}
+            {showAxisMarkers ? (
+              <>
+                {[{ point: points[0], y: firstPriceLabelY, value: drawing.points[0].price }, { point: points[1], y: secondPriceLabelY, value: drawing.points[1].price }].map((item, index) => (
+                  <g key={`${drawing.id}-price-axis-${index}`} pointerEvents="none">
+                    <rect x={width - axisLabelWidth} y={item.y} width={axisLabelWidth} height={axisLabelHeight} rx="2" fill={drawing.style.color} />
+                    <text x={width - axisLabelWidth + 5} y={item.y + 14} fill="#FFFFFF" fontSize="11" fontWeight="500">{formatTrendlinePrice(item.value)}</text>
+                  </g>
+                ))}
+                {[{ x: firstTimeLabelX, time: drawing.points[0].time }, { x: secondTimeLabelX, time: drawing.points[1].time }].map((item, index) => (
+                  <g key={`${drawing.id}-time-axis-${index}`} pointerEvents="none">
+                    <rect x={item.x} y={height - axisLabelHeight} width={timeLabelWidth} height={axisLabelHeight} rx="2" fill={drawing.style.color} />
+                    <text x={item.x + 5} y={height - 6} fill="#FFFFFF" fontSize="11" fontWeight="500">{formatTrendlineTime(item.time)}</text>
+                  </g>
+                ))}
+              </>
             ) : null}
             {selectedDrawingId === drawing.id || isDraft ? (
               <>
@@ -1037,7 +1141,7 @@ export function LightweightTradingChart({
         ? [{
             id: "draft-trendline",
             tool: "trendline",
-            points: [draftPoints[0], draftPoints[1] ?? draftPoints[0]],
+            points: [draftPoints[0], draftPoints[1] ?? draftPreviewPoint ?? draftPoints[0]],
             style: { ...TRENDLINE_DEFAULT_STYLE, opacity: 0.7 },
             stats: { ...TRENDLINE_DEFAULT_STATS, visible: false },
             locked: false,
@@ -1060,7 +1164,7 @@ export function LightweightTradingChart({
     const frame = window.requestAnimationFrame(() => setRenderedDrawings(nextDrawings));
 
     return () => window.cancelAnimationFrame(frame);
-  }, [activeTool, draftPoints, drawings, overlayRevision, renderDrawing]);
+  }, [activeTool, draftPoints, draftPreviewPoint, drawings, overlayRevision, renderDrawing]);
 
   React.useEffect(() => {
     const mainContainer = mainContainerRef.current;
@@ -1497,6 +1601,7 @@ export function LightweightTradingChart({
             draftTrendlineAnchorRef.current = null;
             draftTrendlineMovedRef.current = false;
             draftTrendlinePointerStartRef.current = null;
+            draftTrendlinePendingClickPointRef.current = null;
             setIsDraggingTrendline(false);
           }}
           onMagnetToggle={() => setMagnetEnabled((current) => !current)}
