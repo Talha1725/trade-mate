@@ -8,6 +8,7 @@ export function LiveTradingView({
   compareSymbol = null,
   timeframe = "4H",
   liveQuote = null,
+  compareLiveQuote = null,
   trades = [],
   tradePositions = [],
   className,
@@ -18,6 +19,7 @@ export function LiveTradingView({
       compareSymbol={compareSymbol}
       timeframe={timeframe}
       liveQuote={liveQuote}
+      compareLiveQuote={compareLiveQuote}
       trades={trades}
       tradePositions={tradePositions}
       className={className}

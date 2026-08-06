@@ -20,11 +20,10 @@ import { useChartMarketData } from "@/hooks/use-chart-market-data";
 import { useEodhdMarketQuotes } from "@/hooks/use-eodhd-market-quotes";
 import {
   buildIndicatorSeries,
-  buildRebasedCompareSeries,
-  calculateCandleTrackLine,
+  buildAlignedCompareSeries,
   calculateEma,
-  calculateEmaUpperEnvelope,
   calculateRollingVwap,
+  calculateSessionVwap,
   normalizeIndicatorPanelValues,
 } from "@/lib/utils/chart-indicators";
 import { mergeLiveQuoteIntoCandles } from "@/lib/utils/merge-live-quote-candles";
@@ -367,6 +366,7 @@ export function LightweightTradingChart({
   compareSymbol = null,
   timeframe = "4H",
   liveQuote = null,
+  compareLiveQuote = null,
   trades = [],
   tradePositions = [],
   className,
@@ -504,6 +504,13 @@ export function LightweightTradingChart({
   const eodhdLiveQuote = quoteResponse?.quotes[symbol.toUpperCase()] ?? null;
   const effectiveLiveQuote = liveQuote ?? eodhdLiveQuote;
   const compareCandles = compareData?.candles ?? EMPTY_CANDLES;
+  const displayCompareCandles = React.useMemo(() => {
+    if (!compareLiveQuote || !normalizedCompareSymbol) {
+      return compareCandles;
+    }
+
+    return mergeLiveQuoteIntoCandles(compareCandles, compareLiveQuote, timeframe);
+  }, [compareCandles, compareLiveQuote, normalizedCompareSymbol, timeframe]);
   const displayCandles = React.useMemo(() => {
     if (!effectiveLiveQuote) {
       return candles;
@@ -513,7 +520,7 @@ export function LightweightTradingChart({
   }, [candles, effectiveLiveQuote, timeframe]);
   const chartDataKey = React.useMemo(() => {
     const lastPrimaryTime = candles[candles.length - 1]?.time ?? 0;
-    const lastCompareTime = compareCandles[compareCandles.length - 1]?.time ?? 0;
+    const lastCompareTime = displayCompareCandles[displayCompareCandles.length - 1]?.time ?? 0;
 
     return [
       symbol,
@@ -521,10 +528,11 @@ export function LightweightTradingChart({
       normalizedCompareSymbol ?? "",
       candles.length,
       lastPrimaryTime,
-      compareCandles.length,
+      displayCompareCandles.length,
       lastCompareTime,
+      compareLiveQuote?.price ?? "",
     ].join("|");
-  }, [symbol, timeframe, normalizedCompareSymbol, candles, compareCandles]);
+  }, [symbol, timeframe, normalizedCompareSymbol, candles, displayCompareCandles, compareLiveQuote?.price]);
   const isChartLoading = isLoading || (normalizedCompareSymbol ? isCompareLoading : false);
   const lastDisplayedClose = displayCandles[displayCandles.length - 1]?.close ?? null;
 
@@ -2070,10 +2078,10 @@ export function LightweightTradingChart({
       ? buildIndicatorSeries(displayCandles, calculateEma(displayCandles.map((candle) => candle.close), 20))
       : [];
     const ema50 = enabledIndicators.includes("ema50")
-      ? buildIndicatorSeries(displayCandles, calculateEmaUpperEnvelope(displayCandles, 50))
+      ? buildIndicatorSeries(displayCandles, calculateEma(displayCandles.map((candle) => candle.close), 50))
       : [];
     const vwapTrack = enabledIndicators.includes("vwap")
-      ? buildIndicatorSeries(displayCandles, calculateCandleTrackLine(displayCandles))
+      ? buildIndicatorSeries(displayCandles, calculateSessionVwap(displayCandles))
       : [];
     const rollingVwapValues = enabledIndicators.includes("rolling-vwap")
       ? calculateRollingVwap(displayCandles, 20)
@@ -2106,12 +2114,12 @@ export function LightweightTradingChart({
     }) : null;
 
     const compareTrack = normalizedCompareSymbol
-      ? buildRebasedCompareSeries(displayCandles, compareCandles)
+      ? buildAlignedCompareSeries(displayCandles, displayCompareCandles)
       : [];
 
     const compareSeries = compareTrack.length > 0
       ? mainChart.addSeries(LineSeries, {
-          priceScaleId: "right",
+          priceScaleId: "left",
           color: COMPARE_LINE_COLOR,
           lineWidth: 2,
           priceLineVisible: false,
@@ -2124,7 +2132,8 @@ export function LightweightTradingChart({
       visible: true,
     });
     mainChart.priceScale("left").applyOptions({
-      visible: false,
+      visible: Boolean(compareSeries),
+      borderColor: "rgba(192,132,252,0.35)",
     });
 
     const rollingVwapPanelValues = normalizeIndicatorPanelValues(rollingVwapValues, 12);
@@ -2230,7 +2239,7 @@ export function LightweightTradingChart({
       cancelAnimationFrame(labelFrameId);
       mainChart.timeScale().unsubscribeVisibleLogicalRangeChange(updateLastPriceLabel);
     };
-  }, [chartDataKey, enabledIndicators]);
+  }, [chartDataKey, displayCompareCandles, enabledIndicators, normalizedCompareSymbol, displayCandles]);
 
   React.useEffect(() => {
     const series = candleSeriesRef.current;
@@ -2257,8 +2266,8 @@ export function LightweightTradingChart({
     });
 
     const ema20 = buildIndicatorSeries(merged, calculateEma(merged.map((candle) => candle.close), 20));
-    const ema50 = buildIndicatorSeries(merged, calculateEmaUpperEnvelope(merged, 50));
-    const vwap = buildIndicatorSeries(merged, calculateCandleTrackLine(merged));
+    const ema50 = buildIndicatorSeries(merged, calculateEma(merged.map((candle) => candle.close), 50));
+    const vwap = buildIndicatorSeries(merged, calculateSessionVwap(merged));
     const rollingVwap = normalizeIndicatorPanelValues(calculateRollingVwap(merged, 20), 12);
 
     ema20SeriesRef.current?.setData(ema20.map((point) => ({ time: toSeriesTime(point.time), value: point.value })));

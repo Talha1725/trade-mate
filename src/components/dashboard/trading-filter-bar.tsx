@@ -218,6 +218,7 @@ export function TradingFilterBar({
         {/* <IndicatorsDropdown /> */}
         <CompareAssetsDropdown
           primaryAssetId={selectedAssetId}
+          assets={assets}
           compareAssetId={compareAssetId}
           onCompareChange={onCompareChange}
         />

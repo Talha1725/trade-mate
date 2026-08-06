@@ -7,6 +7,7 @@ export type LightweightTradingChartProps = {
   compareSymbol?: string | null;
   timeframe?: TradingTimeframe;
   liveQuote?: ChartLiveQuote | null;
+  compareLiveQuote?: ChartLiveQuote | null;
   trades?: PortfolioTrade[];
   tradePositions?: PortfolioPosition[];
   className?: string;

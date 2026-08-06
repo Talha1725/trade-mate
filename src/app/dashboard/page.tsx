@@ -227,6 +227,10 @@ export default function DashboardPage() {
     () => resolveQuoteForSymbol(Object.values(liveQuotes), chartSymbol),
     [chartSymbol, liveQuotes, resolveQuoteForSymbol],
   );
+  const compareLiveQuote = React.useMemo(
+    () => (compareSymbol ? resolveQuoteForSymbol(Object.values(liveQuotes), compareSymbol) : null),
+    [compareSymbol, liveQuotes, resolveQuoteForSymbol],
+  );
 
   React.useEffect(() => {
     if (!token || !chartSymbol) {
@@ -419,9 +423,9 @@ export default function DashboardPage() {
   const subscriptionMarketSymbols = React.useMemo(
     () =>
       Array.from(
-        new Set([chartSymbol, ...openSymbols, ...supplementalQuoteSymbols].filter(Boolean) as string[]),
+        new Set([chartSymbol, compareSymbol, ...openSymbols, ...supplementalQuoteSymbols].filter(Boolean) as string[]),
       ),
-    [chartSymbol, openSymbols, supplementalQuoteSymbols],
+    [chartSymbol, compareSymbol, openSymbols, supplementalQuoteSymbols],
   );
   const watchlistMarketSymbols = React.useMemo(
     () => liveWatchlistItems.map((item) => item.symbol),
@@ -548,6 +552,7 @@ export default function DashboardPage() {
               compareSymbol={compareSymbol}
               timeframe={timeframe}
               liveQuote={chartLiveQuote}
+              compareLiveQuote={compareLiveQuote}
               trades={ledger?.trades ?? []}
               tradePositions={snapshot?.positions ?? []}
             />

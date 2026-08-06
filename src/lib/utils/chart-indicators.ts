@@ -53,8 +53,16 @@ export function calculateCandleTrackLine(candles: ChartCandle[]) {
 export function calculateSessionVwap(candles: ChartCandle[]) {
   let cumulativeTypicalPriceVolume = 0;
   let cumulativeVolume = 0;
+  let sessionKey: string | null = null;
 
   return candles.map((candle) => {
+    const nextSessionKey = new Date(candle.time * 1000).toISOString().slice(0, 10);
+    if (sessionKey !== nextSessionKey) {
+      sessionKey = nextSessionKey;
+      cumulativeTypicalPriceVolume = 0;
+      cumulativeVolume = 0;
+    }
+
     const typicalPrice = (candle.high + candle.low + candle.close) / 3;
     cumulativeTypicalPriceVolume += typicalPrice * candle.volume;
     cumulativeVolume += candle.volume;

@@ -10,7 +10,6 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/dashboard/ui/dropDown";
-import { useSyncedTradingAssets } from "@/hooks/use-synced-trading-assets";
 import { cn } from "@/lib/utils";
 import type {
   CompareAssetItem,
@@ -102,18 +101,17 @@ function RemoveComparisonRow({ onRemove }: { onRemove: () => void }) {
 
 export function CompareAssetsDropdown({
   primaryAssetId,
+  assets,
   compareAssetId = null,
   onCompareChange,
   className,
 }: CompareAssetsDropdownProps) {
-  const { data: tradingAssets = [] } = useSyncedTradingAssets();
-
   const compareOptions = React.useMemo(
     () =>
-      tradingAssets
+      assets
         .filter((asset) => asset.id !== primaryAssetId)
         .map(mapAssetToCompareItem),
-    [primaryAssetId, tradingAssets],
+    [assets, primaryAssetId],
   );
 
   const handleSelect = (assetId: string) => {

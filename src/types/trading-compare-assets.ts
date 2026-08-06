@@ -6,6 +6,7 @@ export type CompareAssetItem = {
 
 export type CompareAssetsDropdownProps = {
   primaryAssetId: string;
+  assets: import("@/types/trading-filter-bar").TradingFilterBarAsset[];
   compareAssetId?: string | null;
   onCompareChange?: (assetId: string | null) => void;
   className?: string;
