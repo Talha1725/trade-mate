@@ -11,6 +11,7 @@ import {
   Type,
   RotateCcw,
   Undo2,
+  Redo2,
   Waves,
   ZoomIn,
   ZoomOut,
@@ -33,6 +34,7 @@ const TOOLBAR_ITEMS = [
   { id: "zoom-out", icon: ZoomOut, label: "Zoom out" },
   { id: "reset", icon: RotateCcw, label: "Reset view" },
   { id: "undo", icon: Undo2, label: "Undo drawing" },
+  { id: "redo", icon: Redo2, label: "Redo drawing" },
 ] as const;
 
 const INDICATOR_ITEMS = [
@@ -52,6 +54,7 @@ type ChartToolbarProps = {
   onZoomOut: () => void;
   onReset: () => void;
   onUndo: () => void;
+  onRedo: () => void;
   enabledIndicators: ChartIndicatorId[];
   onIndicatorToggle: (indicator: ChartIndicatorId) => void;
 };
@@ -66,6 +69,7 @@ export function ChartToolbar({
   onZoomOut,
   onReset,
   onUndo,
+  onRedo,
   enabledIndicators,
   onIndicatorToggle,
 }: ChartToolbarProps) {
@@ -97,6 +101,8 @@ export function ChartToolbar({
                 onReset();
               } else if (item.id === "undo") {
                 onUndo();
+              } else if (item.id === "redo") {
+                onRedo();
               } else if (isMagnet) {
                 onMagnetToggle();
               } else {

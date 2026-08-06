@@ -151,6 +151,14 @@ export async function GET(request: NextRequest) {
         candles = await fetchEodCandles(eodhdSymbol, apiToken, from, now);
         dataSource = "eod";
       }
+
+      // Some EODHD plans return an empty array instead of an error when
+      // intraday history is not included. Use the available daily history so
+      // the chart still renders instead of silently showing an empty canvas.
+      if (candles.length === 0) {
+        candles = await fetchEodCandles(eodhdSymbol, apiToken, from, now);
+        dataSource = "eod";
+      }
     }
 
     if (plan.aggregateBucketSeconds && !(dataSource === "eod" && plan.mode === "intraday")) {

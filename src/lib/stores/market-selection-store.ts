@@ -118,7 +118,9 @@ export const useMarketSelectionStore = create<MarketSelectionStore>()(
       setHasHydrated: (value) => set({ hasHydrated: value }),
     }),
     {
-      name: "trade-mate-market-selection",
+      // Reset the persisted chart selection once so existing users start on
+      // the new 4H default instead of an older persisted 1m selection.
+      name: "trade-mate-market-selection-v2",
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         selectedMarketId: state.selectedMarketId,

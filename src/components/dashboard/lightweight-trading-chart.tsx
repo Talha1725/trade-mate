@@ -31,11 +31,12 @@ import { mergeLiveQuoteIntoCandles } from "@/lib/utils/merge-live-quote-candles"
 import { cn } from "@/lib/utils";
 import type { ChartCandle } from "@/types/eodhd";
 import type {
-  ChartDrawing,
+  AnyChartDrawing,
   ChartIndicatorId,
   ChartPoint,
   ChartToolId,
   LightweightTradingChartProps,
+  TrendlineDrawing,
 } from "@/types/lightweight-trading-chart";
 
 const CHART_BACKGROUND = "transparent";
@@ -51,6 +52,25 @@ const EMA50_COLOR = "#3B82F6";
 const VWAP_COLOR = "#FF8000";
 const ROLLING_VWAP_COLOR = "#03D5D5";
 const COMPARE_LINE_COLOR = "#C084FC";
+const TRENDLINE_DEFAULT_STYLE = {
+  color: "#2962FF",
+  opacity: 1,
+  width: 2,
+  lineStyle: "solid" as const,
+  leftEnd: "normal" as const,
+  rightEnd: "normal" as const,
+  extendLeft: false,
+  extendRight: false,
+};
+const TRENDLINE_DEFAULT_STATS = {
+  visible: true,
+  showPriceChange: true,
+  showPercentChange: true,
+  showBarsRange: false,
+  showTimeRange: false,
+  showAngle: false,
+  position: "above" as const,
+};
 const EMPTY_CANDLES: ChartCandle[] = [];
 
 function getDefaultVisibleBars(timeframe: string) {
@@ -77,8 +97,102 @@ function formatLegendValue(value: number | null) {
   });
 }
 
+function formatSignedLegendValue(value: number) {
+  const formatted = formatLegendValue(Math.abs(value));
+  return value < 0 ? `-${formatted}` : `+${formatted}`;
+}
+
 function toSeriesTime(time: number) {
   return time as UTCTimestamp;
+}
+
+function getTrendlineStrokeDash(style: TrendlineDrawing["style"]) {
+  if (style.lineStyle === "dashed") {
+    return "8 5";
+  }
+
+  if (style.lineStyle === "dotted") {
+    return "2 4";
+  }
+
+  return undefined;
+}
+
+function getExtendedTrendlinePoints(
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+  width: number,
+  height: number,
+  extendLeft: boolean,
+  extendRight: boolean,
+) {
+  if (Math.abs(end.x - start.x) < 0.0001) {
+    return {
+      start: extendLeft ? { x: start.x, y: 0 } : start,
+      end: extendRight ? { x: end.x, y: height } : end,
+    };
+  }
+
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const intersections: Array<{ x: number; y: number }> = [];
+
+  const addAtX = (x: number) => {
+    if (Math.abs(dx) < 0.0001) {
+      return;
+    }
+
+    const y = start.y + ((x - start.x) * dy) / dx;
+    if (y >= 0 && y <= height) {
+      intersections.push({ x, y });
+    }
+  };
+
+  const addAtY = (y: number) => {
+    if (Math.abs(dy) < 0.0001) {
+      return;
+    }
+
+    const x = start.x + ((y - start.y) * dx) / dy;
+    if (x >= 0 && x <= width) {
+      intersections.push({ x, y });
+    }
+  };
+
+  addAtX(0);
+  addAtX(width);
+  addAtY(0);
+  addAtY(height);
+
+  const direction = dx === 0 ? 1 : dx;
+  const leftBoundary = intersections
+    .filter((point) => (direction > 0 ? point.x <= start.x : point.x >= start.x))
+    .sort((a, b) => Math.abs(a.x - start.x) - Math.abs(b.x - start.x))[0];
+  const rightBoundary = intersections
+    .filter((point) => (direction > 0 ? point.x >= end.x : point.x <= end.x))
+    .sort((a, b) => Math.abs(a.x - end.x) - Math.abs(b.x - end.x))[0];
+
+  return {
+    start: extendLeft && leftBoundary ? leftBoundary : start,
+    end: extendRight && rightBoundary ? rightBoundary : end,
+  };
+}
+
+function distanceToSegment(
+  point: { x: number; y: number },
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+
+  if (lengthSquared === 0) {
+    return Math.hypot(point.x - start.x, point.y - start.y);
+  }
+
+  const projection = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared));
+  return Math.hypot(point.x - (start.x + projection * dx), point.y - (start.y + projection * dy));
 }
 
 function syncLastPriceLabel(
@@ -128,11 +242,48 @@ export function LightweightTradingChart({
   const [activeTool, setActiveTool] = React.useState<ChartToolId>("crosshair");
   const [enabledIndicators, setEnabledIndicators] = React.useState<ChartIndicatorId[]>([]);
   const [magnetEnabled, setMagnetEnabled] = React.useState(false);
-  const [drawings, setDrawings] = React.useState<ChartDrawing[]>([]);
+  const [drawings, setDrawings] = React.useState<AnyChartDrawing[]>([]);
+  const [redoDrawings, setRedoDrawings] = React.useState<AnyChartDrawing[]>([]);
   const [draftPoints, setDraftPoints] = React.useState<ChartPoint[]>([]);
   const [renderedDrawings, setRenderedDrawings] = React.useState<React.ReactNode[]>([]);
   const [isDrawing, setIsDrawing] = React.useState(false);
+  const [selectedDrawingId, setSelectedDrawingId] = React.useState<string | null>(null);
+  const [hoveredTrendlineId, setHoveredTrendlineId] = React.useState<string | null>(null);
+  const [hoveredTrendlineEndpoint, setHoveredTrendlineEndpoint] = React.useState<0 | 1 | null>(null);
+  const [isDraggingTrendline, setIsDraggingTrendline] = React.useState(false);
+  const draggingTrendlineRef = React.useRef<{ id: string; endpoint: 0 | 1 } | null>(null);
+  const draggingDraftTrendlineRef = React.useRef(false);
+  const draftTrendlineAnchorRef = React.useRef<ChartPoint | null>(null);
+  const draftTrendlineMovedRef = React.useRef(false);
+  const draftTrendlinePointerStartRef = React.useRef<{ x: number; y: number } | null>(null);
   const [overlayRevision, setOverlayRevision] = React.useState(0);
+  const drawingsStorageKey = `trade-mate:chart-drawings:${symbol}:${timeframe}`;
+  const drawingsHydratedRef = React.useRef(false);
+
+  React.useEffect(() => {
+    drawingsHydratedRef.current = false;
+
+    const frame = window.requestAnimationFrame(() => {
+      try {
+        const stored = window.localStorage.getItem(drawingsStorageKey);
+        setDrawings(stored ? JSON.parse(stored) as AnyChartDrawing[] : []);
+      } catch {
+        setDrawings([]);
+      }
+
+      setRedoDrawings([]);
+      setSelectedDrawingId(null);
+      drawingsHydratedRef.current = true;
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [drawingsStorageKey]);
+
+  React.useEffect(() => {
+    if (drawingsHydratedRef.current) {
+      window.localStorage.setItem(drawingsStorageKey, JSON.stringify(drawings));
+    }
+  }, [drawings, drawingsStorageKey]);
 
   const normalizedCompareSymbol = React.useMemo(() => {
     if (!compareSymbol) {
@@ -215,17 +366,27 @@ export function LightweightTradingChart({
         return null;
       }
 
-      let point: ChartPoint = { time: rawTime, price: rawPrice };
+      let point: ChartPoint = { time: rawTime, price: rawPrice, snappedField: null };
 
       if (magnetEnabled && displayCandles.length > 0) {
-        const nearest = displayCandles.reduce((best, candle) =>
-          Math.abs(candle.time - point.time) < Math.abs(best.time - point.time) ? candle : best,
+        const nearestIndex = displayCandles.reduce(
+          (bestIndex, candle, index) =>
+            Math.abs(candle.time - point.time) < Math.abs(displayCandles[bestIndex].time - point.time)
+              ? index
+              : bestIndex,
+          0,
         );
-        const prices = [nearest.open, nearest.high, nearest.low, nearest.close];
-        const snappedPrice = prices.reduce((best, price) =>
-          Math.abs(price - point.price) < Math.abs(best - point.price) ? price : best,
+        const nearest = displayCandles[nearestIndex];
+        const fields = [
+          ["open", nearest.open],
+          ["high", nearest.high],
+          ["low", nearest.low],
+          ["close", nearest.close],
+        ] as const;
+        const [snappedField, snappedPrice] = fields.reduce((best, current) =>
+          Math.abs(current[1] - point.price) < Math.abs(best[1] - point.price) ? current : best,
         );
-        point = { time: nearest.time, price: snappedPrice };
+        point = { time: nearest.time, price: snappedPrice, logicalIndex: nearestIndex, snappedField };
       }
 
       return point;
@@ -234,7 +395,7 @@ export function LightweightTradingChart({
   );
 
   const commitDrawing = React.useCallback(
-    (tool: Exclude<ChartToolId, "crosshair">, points: ChartPoint[], text?: string) => {
+    (tool: Exclude<ChartToolId, "crosshair" | "trendline">, points: ChartPoint[], text?: string) => {
       if (points.length === 0) {
         return;
       }
@@ -243,14 +404,170 @@ export function LightweightTradingChart({
         ...current,
         { id: `${tool}-${Date.now()}-${current.length}`, tool, points, text },
       ]);
+      setRedoDrawings([]);
       setDraftPoints([]);
     },
     [],
   );
 
+  const commitTrendline = React.useCallback((points: [ChartPoint, ChartPoint]) => {
+    if (points[0].time === points[1].time && points[0].price === points[1].price) {
+      return;
+    }
+
+    const now = Date.now();
+    const drawing: TrendlineDrawing = {
+      id: `trendline-${now}-${Math.random().toString(36).slice(2, 8)}`,
+      tool: "trendline",
+      points,
+      style: TRENDLINE_DEFAULT_STYLE,
+      stats: TRENDLINE_DEFAULT_STATS,
+      locked: false,
+      hidden: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    setDrawings((current) => [...current, drawing]);
+    setRedoDrawings([]);
+    setSelectedDrawingId(drawing.id);
+    setDraftPoints([]);
+    draftTrendlineAnchorRef.current = null;
+    setIsDrawing(false);
+  }, []);
+
+  const toPixelPoint = React.useCallback((point: ChartPoint) => {
+    const chart = mainChartRef.current;
+    const series = candleSeriesRef.current;
+
+    if (!chart || !series) {
+      return null;
+    }
+
+    const x = chart.timeScale().timeToCoordinate(toSeriesTime(point.time));
+    const y = series.priceToCoordinate(point.price);
+
+    return x === null || y === null ? null : { x: Number(x), y: Number(y) };
+  }, []);
+
+  const findTrendlineAtPoint = React.useCallback((event: React.PointerEvent<SVGSVGElement>) => {
+    const overlay = drawingOverlayRef.current;
+    if (!overlay) {
+      return null;
+    }
+
+    const bounds = overlay.getBoundingClientRect();
+    const pointer = { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
+
+    for (const drawing of [...drawings].reverse()) {
+      if (drawing.tool !== "trendline" || drawing.hidden) {
+        continue;
+      }
+
+      const pixels = drawing.points.map(toPixelPoint);
+      if (!pixels[0] || !pixels[1]) {
+        continue;
+      }
+
+      const segment = getExtendedTrendlinePoints(
+        pixels[0],
+        pixels[1],
+        overlay.clientWidth,
+        overlay.clientHeight,
+        drawing.style.extendLeft,
+        drawing.style.extendRight,
+      );
+
+      if (distanceToSegment(pointer, segment.start, segment.end) <= Math.max(10, drawing.style.width + 8)) {
+        return drawing.id;
+      }
+    }
+
+    return null;
+  }, [drawings, toPixelPoint]);
+
+  const findTrendlineHandleAtPoint = React.useCallback((event: React.PointerEvent<SVGSVGElement>) => {
+    const overlay = drawingOverlayRef.current;
+    if (!overlay) {
+      return null;
+    }
+
+    const bounds = overlay.getBoundingClientRect();
+    const pointer = { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
+
+    for (const drawing of [...drawings].reverse()) {
+      if (drawing.tool !== "trendline" || drawing.hidden || drawing.locked) {
+        continue;
+      }
+
+      const pixels = drawing.points.map(toPixelPoint);
+      if (!pixels[0] || !pixels[1]) {
+        continue;
+      }
+
+      const endpoint = pixels.findIndex((pixel) => pixel !== null && Math.hypot(pointer.x - pixel.x, pointer.y - pixel.y) <= 12);
+      if (endpoint === 0 || endpoint === 1) {
+        return { id: drawing.id, endpoint: endpoint as 0 | 1 };
+      }
+    }
+
+    return null;
+  }, [drawings, toPixelPoint]);
+
   const handleDrawingPointerDown = React.useCallback(
     (event: React.PointerEvent<SVGSVGElement>) => {
       if (activeTool === "crosshair") {
+        return;
+      }
+
+      event.currentTarget.setPointerCapture(event.pointerId);
+
+      if (activeTool === "trendline") {
+        if (draftPoints.length === 1) {
+          // The next pointer gesture extends the line from the fixed first
+          // anchor. The endpoint is committed by the following click.
+          draggingDraftTrendlineRef.current = true;
+          draftTrendlineMovedRef.current = false;
+          draftTrendlinePointerStartRef.current = { x: event.clientX, y: event.clientY };
+          setIsDrawing(true);
+          return;
+        }
+
+        const point = getChartPoint(event);
+        if (!point) {
+          return;
+        }
+
+        if (draftPoints.length === 0) {
+          const handle = findTrendlineHandleAtPoint(event);
+          if (handle) {
+            draggingTrendlineRef.current = handle;
+            setSelectedDrawingId(handle.id);
+            setIsDraggingTrendline(true);
+            return;
+          }
+
+          const hitDrawingId = findTrendlineAtPoint(event);
+
+          if (hitDrawingId) {
+            setSelectedDrawingId(hitDrawingId);
+            return;
+          }
+
+          setSelectedDrawingId(null);
+        }
+
+        if (draftPoints.length === 0) {
+          setDraftPoints([point]);
+          draftTrendlineAnchorRef.current = point;
+          draggingDraftTrendlineRef.current = true;
+          draftTrendlineMovedRef.current = false;
+          draftTrendlinePointerStartRef.current = { x: event.clientX, y: event.clientY };
+          setIsDrawing(true);
+        } else {
+          commitTrendline([draftPoints[0], point]);
+        }
+
         return;
       }
 
@@ -259,8 +576,6 @@ export function LightweightTradingChart({
       if (!point) {
         return;
       }
-
-      event.currentTarget.setPointerCapture(event.pointerId);
 
       if (activeTool === "brush" || activeTool === "path") {
         setIsDrawing(true);
@@ -289,30 +604,97 @@ export function LightweightTradingChart({
         return next;
       });
     },
-    [activeTool, commitDrawing, getChartPoint],
+    [activeTool, commitDrawing, commitTrendline, draftPoints, findTrendlineAtPoint, findTrendlineHandleAtPoint, getChartPoint],
   );
 
   const handleDrawingPointerMove = React.useCallback(
     (event: React.PointerEvent<SVGSVGElement>) => {
-      if (!isDrawing) {
+      if (draggingDraftTrendlineRef.current) {
+        const pointerStart = draftTrendlinePointerStartRef.current;
+        if (pointerStart && !draftTrendlineMovedRef.current) {
+          const distance = Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y);
+          if (distance < 4) {
+            return;
+          }
+          draftTrendlineMovedRef.current = true;
+        }
+
+        const point = getChartPoint(event);
+        if (point) {
+          setDraftPoints((current) => {
+            const anchor = draftTrendlineAnchorRef.current ?? current[0];
+            return anchor ? [anchor, point] : current;
+          });
+        }
+        return;
+      }
+
+      const draggingTrendline = draggingTrendlineRef.current;
+      if (draggingTrendline) {
+        const point = getChartPoint(event);
+        if (point) {
+          setDrawings((current) => current.map((drawing) => {
+            if (drawing.id !== draggingTrendline.id || drawing.tool !== "trendline") {
+              return drawing;
+            }
+
+            const points: [ChartPoint, ChartPoint] = [...drawing.points] as [ChartPoint, ChartPoint];
+            points[draggingTrendline.endpoint] = point;
+            return { ...drawing, points, updatedAt: Date.now() };
+          }));
+        }
+        return;
+      }
+
+      if (!isDrawing && !(activeTool === "trendline" && draftPoints.length === 1)) {
+        if (activeTool === "trendline") {
+          const handle = findTrendlineHandleAtPoint(event);
+          setHoveredTrendlineId(handle?.id ?? findTrendlineAtPoint(event));
+          setHoveredTrendlineEndpoint(handle?.endpoint ?? null);
+        }
         return;
       }
 
       const point = getChartPoint(event);
 
-      if (point) {
+      if (point && activeTool === "trendline" && draftPoints.length === 1) {
+        // Keep the first anchor fixed and extend the preview line to the cursor.
+        setDraftPoints([draftPoints[0], point]);
+      } else if (point) {
         setDraftPoints((current) => [...current, point]);
       }
     },
-    [getChartPoint, isDrawing],
+    [activeTool, draftPoints, findTrendlineAtPoint, findTrendlineHandleAtPoint, getChartPoint, isDrawing],
   );
 
   const handleDrawingPointerUp = React.useCallback(() => {
+    if (draggingDraftTrendlineRef.current) {
+      draggingDraftTrendlineRef.current = false;
+      draftTrendlineAnchorRef.current = draftPoints[0] ?? draftTrendlineAnchorRef.current;
+      draftTrendlineMovedRef.current = false;
+      draftTrendlinePointerStartRef.current = null;
+      setIsDrawing(false);
+      return;
+    }
+
+    if (draggingTrendlineRef.current) {
+      draggingTrendlineRef.current = null;
+      setIsDraggingTrendline(false);
+      return;
+    }
+
+    if (activeTool === "trendline") {
+      setIsDrawing(false);
+      return;
+    }
+
     if (!isDrawing) {
       return;
     }
 
     setIsDrawing(false);
+    setHoveredTrendlineId(null);
+    setHoveredTrendlineEndpoint(null);
 
     if (activeTool !== "crosshair" && draftPoints.length > 1) {
       commitDrawing(activeTool, draftPoints);
@@ -320,6 +702,33 @@ export function LightweightTradingChart({
       setDraftPoints([]);
     }
   }, [activeTool, commitDrawing, draftPoints, isDrawing]);
+
+  React.useEffect(() => {
+    const handleDraftPointerMove = (event: PointerEvent) => {
+      if (!draggingDraftTrendlineRef.current) {
+        return;
+      }
+
+      const pointerStart = draftTrendlinePointerStartRef.current;
+      if (pointerStart && !draftTrendlineMovedRef.current) {
+        if (Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) < 4) {
+          return;
+        }
+        draftTrendlineMovedRef.current = true;
+      }
+
+      const point = getChartPoint(event as unknown as React.PointerEvent<SVGSVGElement>);
+      if (point) {
+        setDraftPoints((current) => {
+          const anchor = draftTrendlineAnchorRef.current ?? current[0];
+          return anchor ? [anchor, point] : current;
+        });
+      }
+    };
+
+    window.addEventListener("pointermove", handleDraftPointerMove);
+    return () => window.removeEventListener("pointermove", handleDraftPointerMove);
+  }, [getChartPoint]);
 
   const adjustZoom = React.useCallback((factor: number) => {
     const chart = mainChartRef.current;
@@ -344,6 +753,18 @@ export function LightweightTradingChart({
   const zoomOut = React.useCallback(() => adjustZoom(1.6), [adjustZoom]);
 
   const resetView = React.useCallback(() => {
+    setDrawings([]);
+    setRedoDrawings([]);
+    setSelectedDrawingId(null);
+    setDraftPoints([]);
+    setIsDrawing(false);
+    draggingTrendlineRef.current = null;
+    draggingDraftTrendlineRef.current = false;
+    draftTrendlineAnchorRef.current = null;
+    draftTrendlineMovedRef.current = false;
+    draftTrendlinePointerStartRef.current = null;
+    setIsDraggingTrendline(false);
+
     const chart = mainChartRef.current;
     const subChart = subChartRef.current;
 
@@ -362,27 +783,204 @@ export function LightweightTradingChart({
   }, [displayCandles.length, timeframe]);
 
   const undoDrawing = React.useCallback(() => {
-    setDrawings((current) => current.slice(0, -1));
+    setDrawings((current) => {
+      const removed = current[current.length - 1];
+      if (removed) {
+        setRedoDrawings((redo) => [...redo, removed]);
+      }
+      return current.slice(0, -1);
+    });
+    setSelectedDrawingId(null);
     setDraftPoints([]);
     setIsDrawing(false);
   }, []);
 
-  const toPixelPoint = React.useCallback((point: ChartPoint) => {
-    const chart = mainChartRef.current;
-    const series = candleSeriesRef.current;
-
-    if (!chart || !series) {
-      return null;
-    }
-
-    const x = chart.timeScale().timeToCoordinate(toSeriesTime(point.time));
-    const y = series.priceToCoordinate(point.price);
-
-    return x === null || y === null ? null : { x: Number(x), y: Number(y) };
+  const redoDrawing = React.useCallback(() => {
+    setRedoDrawings((current) => {
+      const restored = current[current.length - 1];
+      if (restored) {
+        setDrawings((drawingsCurrent) => [...drawingsCurrent, restored]);
+        setSelectedDrawingId(restored.id);
+      }
+      return current.slice(0, -1);
+    });
   }, []);
 
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isEditingText = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
+
+      if (isEditingText) {
+        return;
+      }
+
+      if (event.key === "Escape") {
+        if (draftPoints.length > 0 || isDrawing) {
+          setDraftPoints([]);
+          setIsDrawing(false);
+          return;
+        }
+
+        setSelectedDrawingId(null);
+      }
+
+      if ((event.key === "Delete" || event.key === "Backspace") && selectedDrawingId) {
+        setDrawings((current) => current.filter((drawing) => drawing.id !== selectedDrawingId));
+        setSelectedDrawingId(null);
+      }
+
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        if (event.shiftKey) {
+          redoDrawing();
+        } else {
+          undoDrawing();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [draftPoints.length, isDrawing, redoDrawing, selectedDrawingId, undoDrawing]);
+
   const renderDrawing = React.useCallback(
-    (drawing: ChartDrawing) => {
+    (drawing: AnyChartDrawing) => {
+      if (drawing.tool === "trendline") {
+        if (drawing.hidden) {
+          return null;
+        }
+
+        const isDraft = drawing.id === "draft-trendline";
+        const points = drawing.points.flatMap((point) => {
+          const pixel = toPixelPoint(point);
+          return pixel ? [{ x: Number(pixel.x), y: Number(pixel.y) }] : [];
+        });
+
+        if (points.length < 2) {
+          return null;
+        }
+
+        const overlay = drawingOverlayRef.current;
+        const width = overlay?.clientWidth ?? 0;
+        const height = overlay?.clientHeight ?? 0;
+        const segment = getExtendedTrendlinePoints(
+          points[0],
+          points[1],
+          width,
+          height,
+          drawing.style.extendLeft,
+          drawing.style.extendRight,
+        );
+        const dash = getTrendlineStrokeDash(drawing.style);
+        const opacity = Math.max(0, Math.min(1, drawing.style.opacity));
+        const dx = segment.end.x - segment.start.x;
+        const dy = segment.end.y - segment.start.y;
+        const length = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
+        const arrow = (point: { x: number; y: number }, direction: 1 | -1) => {
+          const ux = (dx / length) * direction;
+          const uy = (dy / length) * direction;
+          const size = Math.min(10, Math.max(6, drawing.style.width * 3));
+          const px = -uy;
+          const py = ux;
+          return `${point.x},${point.y} ${point.x - ux * size + px * size * 0.55},${point.y - uy * size + py * size * 0.55} ${point.x - ux * size - px * size * 0.55},${point.y - uy * size - py * size * 0.55}`;
+        };
+        const priceChange = drawing.points[1].price - drawing.points[0].price;
+        const percentChange = drawing.points[0].price !== 0
+          ? (priceChange / drawing.points[0].price) * 100
+          : null;
+        const midpoint = {
+          x: (points[0].x + points[1].x) / 2,
+          y: (points[0].y + points[1].y) / 2,
+        };
+        const endpointDx = points[1].x - points[0].x;
+        const endpointDy = points[1].y - points[0].y;
+        const endpointLength = Math.hypot(endpointDx, endpointDy);
+        let normalX = endpointLength > 0 ? -endpointDy / endpointLength : 0;
+        let normalY = endpointLength > 0 ? endpointDx / endpointLength : -1;
+        if (normalY > 0) {
+          normalX *= -1;
+          normalY *= -1;
+        }
+        const statsWidth = 180;
+        const statsHeight = 28;
+        const statsCenterX = midpoint.x + normalX * 20;
+        const statsCenterY = midpoint.y + normalY * 20;
+        const statsX = Math.max(0, Math.min(width - statsWidth, statsCenterX - statsWidth / 2));
+        const statsY = Math.max(0, Math.min(height - statsHeight, statsCenterY - statsHeight / 2));
+        const statsText = [
+          drawing.stats.showPriceChange ? formatSignedLegendValue(priceChange) : null,
+          drawing.stats.showPercentChange && percentChange !== null
+            ? `(${percentChange < 0 ? "-" : "+"}${Math.abs(percentChange).toFixed(2)}%)`
+            : null,
+        ].filter(Boolean).join(" ");
+
+        return (
+          <g key={drawing.id} opacity={opacity}>
+            <line
+              x1={segment.start.x}
+              y1={segment.start.y}
+              x2={segment.end.x}
+              y2={segment.end.y}
+              stroke="transparent"
+              strokeWidth={Math.max(10, drawing.style.width + 8)}
+              pointerEvents="stroke"
+            />
+            <line
+              x1={segment.start.x}
+              y1={segment.start.y}
+              x2={segment.end.x}
+              y2={segment.end.y}
+              stroke={drawing.style.color}
+              strokeWidth={drawing.style.width}
+              strokeDasharray={dash}
+              strokeLinecap="round"
+            />
+            {drawing.style.leftEnd === "arrow" ? <polygon points={arrow(segment.start, 1)} fill={drawing.style.color} /> : null}
+            {drawing.style.rightEnd === "arrow" ? <polygon points={arrow(segment.end, -1)} fill={drawing.style.color} /> : null}
+            {drawing.stats.visible ? (
+              <foreignObject
+                x={statsX}
+                y={statsY}
+                width={statsWidth}
+                height={statsHeight}
+                pointerEvents="none"
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: "100%",
+                    height: "100%",
+                    color: drawing.style.color,
+                    background: "rgba(10, 14, 22, 0.82)",
+                    border: `1px solid ${drawing.style.color}`,
+                    borderRadius: 4,
+                    padding: "3px 6px",
+                    fontSize: 12,
+                    fontWeight: 500,
+                    whiteSpace: "nowrap",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  {statsText}
+                </div>
+              </foreignObject>
+            ) : null}
+            {selectedDrawingId === drawing.id || isDraft ? (
+              <>
+                {points.map((point, index) => (
+                  <g key={`${drawing.id}-handle-${index}`}>
+                    <circle cx={point.x} cy={point.y} r="4.5" fill="#FFFFFF" stroke={drawing.style.color} strokeWidth="2" />
+                  </g>
+                ))}
+              </>
+            ) : null}
+          </g>
+        );
+      }
+
       const points = drawing.points.flatMap((point) => {
         const pixel = toPixelPoint(point);
         return pixel ? [{ x: Number(pixel.x), y: Number(pixel.y) }] : [];
@@ -430,14 +1028,30 @@ export function LightweightTradingChart({
         </g>
       );
     },
-    [toPixelPoint],
+    [selectedDrawingId, toPixelPoint],
   );
 
   React.useEffect(() => {
-    const preview =
-      draftPoints.length > 0 && activeTool !== "text" && activeTool !== "crosshair"
-        ? [{ id: "draft", tool: activeTool, points: draftPoints } satisfies ChartDrawing]
-        : [];
+    const preview: AnyChartDrawing[] =
+      draftPoints.length > 0 && activeTool === "trendline"
+        ? [{
+            id: "draft-trendline",
+            tool: "trendline",
+            points: [draftPoints[0], draftPoints[1] ?? draftPoints[0]],
+            style: { ...TRENDLINE_DEFAULT_STYLE, opacity: 0.7 },
+            stats: { ...TRENDLINE_DEFAULT_STATS, visible: false },
+            locked: false,
+            hidden: false,
+            createdAt: 0,
+            updatedAt: 0,
+          }]
+        : draftPoints.length > 0 && activeTool !== "text" && activeTool !== "crosshair"
+          ? [{
+              id: "draft",
+              tool: activeTool as Exclude<ChartToolId, "crosshair" | "trendline">,
+              points: draftPoints,
+            }]
+          : [];
 
     const nextDrawings =
       [...drawings, ...preview]
@@ -878,6 +1492,12 @@ export function LightweightTradingChart({
             setActiveTool(tool);
             setDraftPoints([]);
             setIsDrawing(false);
+            draggingTrendlineRef.current = null;
+            draggingDraftTrendlineRef.current = false;
+            draftTrendlineAnchorRef.current = null;
+            draftTrendlineMovedRef.current = false;
+            draftTrendlinePointerStartRef.current = null;
+            setIsDraggingTrendline(false);
           }}
           onMagnetToggle={() => setMagnetEnabled((current) => !current)}
           onIndicatorToggle={toggleIndicator}
@@ -885,6 +1505,7 @@ export function LightweightTradingChart({
           onZoomOut={zoomOut}
           onReset={resetView}
           onUndo={undoDrawing}
+          onRedo={redoDrawings.length > 0 ? redoDrawing : () => undefined}
         />
 
         <div className="relative flex min-w-0 flex-1 flex-col h-full rounded-[12px] border-[1.5px] border-white/20 bg-linear-to-t from-white/7 to-white/5">
@@ -910,12 +1531,26 @@ export function LightweightTradingChart({
               data-revision={overlayRevision}
               className={cn(
                 "absolute inset-0 z-[5] h-full w-full",
-                activeTool === "crosshair" ? "pointer-events-none" : "pointer-events-auto cursor-crosshair",
+                activeTool === "crosshair"
+                  ? "pointer-events-none"
+                  : isDraggingTrendline
+                    ? "pointer-events-auto cursor-grabbing"
+                    : hoveredTrendlineEndpoint !== null
+                      ? "pointer-events-auto cursor-grab"
+                      : hoveredTrendlineId
+                        ? "pointer-events-auto cursor-move"
+                        : "pointer-events-auto cursor-crosshair",
               )}
               onPointerDown={handleDrawingPointerDown}
               onPointerMove={handleDrawingPointerMove}
               onPointerUp={handleDrawingPointerUp}
               onPointerCancel={handleDrawingPointerUp}
+              onPointerLeave={() => {
+                if (!isDraggingTrendline) {
+                  setHoveredTrendlineId(null);
+                  setHoveredTrendlineEndpoint(null);
+                }
+              }}
             >
               {renderedDrawings}
             </svg>
