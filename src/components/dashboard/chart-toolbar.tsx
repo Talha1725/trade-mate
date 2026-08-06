@@ -37,7 +37,8 @@ const TOOLBAR_ITEMS = [
 
 const INDICATOR_ITEMS = [
   { id: "ema", icon: TrendingUp, label: "EMA" },
-  { id: "vwap", icon: Ruler, label: "VWAP" },
+  // VWAP remains available to the chart implementation, but is intentionally
+  // hidden from the sidebar while its on-chart settings control is used.
 ] as const;
 
 type ChartToolbarProps = {

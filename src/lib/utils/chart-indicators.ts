@@ -1,5 +1,191 @@
 import type { ChartCandle, ChartIndicatorPoint } from "@/types/eodhd";
 
+export type VwapSource = "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4";
+export type VwapAnchorPeriod = "session" | "week" | "month" | "quarter" | "year" | "decade" | "century";
+export type VwapBandMode = "standard-deviation" | "percentage";
+
+export type VwapBandSettings = {
+  visible: boolean;
+  multiplier: number;
+};
+
+export type VwapCalculationSettings = {
+  source: VwapSource;
+  anchorPeriod: VwapAnchorPeriod;
+  bandMode: VwapBandMode;
+  bands: [VwapBandSettings, VwapBandSettings, VwapBandSettings];
+};
+
+export type VwapPoint = {
+  time: number;
+  value: number;
+  source: number;
+  cumulativeVolume: number;
+  cumulativePriceVolume: number;
+  standardDeviation: number | null;
+  anchorId: string;
+  upperBands: Array<number | null>;
+  lowerBands: Array<number | null>;
+};
+
+export const DEFAULT_VWAP_CALCULATION: VwapCalculationSettings = {
+  source: "hlc3",
+  anchorPeriod: "session",
+  bandMode: "standard-deviation",
+  bands: [
+    { visible: true, multiplier: 1 },
+    { visible: false, multiplier: 2 },
+    { visible: false, multiplier: 3 },
+  ],
+};
+
+export function getVwapSourcePrice(candle: ChartCandle, source: VwapSource) {
+  switch (source) {
+    case "open": return candle.open;
+    case "high": return candle.high;
+    case "low": return candle.low;
+    case "close": return candle.close;
+    case "hl2": return (candle.high + candle.low) / 2;
+    case "ohlc4": return (candle.open + candle.high + candle.low + candle.close) / 4;
+    case "hlc3": return (candle.high + candle.low + candle.close) / 3;
+  }
+}
+
+export function getVwapAnchorId(timestamp: number, anchor: VwapAnchorPeriod) {
+  const date = new Date(timestamp * 1000);
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth();
+
+  switch (anchor) {
+    case "session":
+      return `${year}-${String(month + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+    case "week": {
+      const day = date.getUTCDay() || 7;
+      const monday = new Date(Date.UTC(year, month, date.getUTCDate() - day + 1));
+      return `${monday.getUTCFullYear()}-W${String(Math.ceil((((monday.getTime() - Date.UTC(monday.getUTCFullYear(), 0, 1)) / 86400000) + 1) / 7)).padStart(2, "0")}`;
+    }
+    case "month": return `${year}-${String(month + 1).padStart(2, "0")}`;
+    case "quarter": return `${year}-Q${Math.floor(month / 3) + 1}`;
+    case "year": return String(year);
+    case "decade": return `${Math.floor(year / 10) * 10}s`;
+    case "century": return `${Math.floor(year / 100) * 100}s`;
+  }
+}
+
+export function calculateVwap(
+  candles: ChartCandle[],
+  settings: VwapCalculationSettings = DEFAULT_VWAP_CALCULATION,
+): VwapPoint[] {
+  const ordered = candles
+    .filter((candle) => Number.isFinite(candle.time) && Number.isFinite(candle.open) && Number.isFinite(candle.high) && Number.isFinite(candle.low) && Number.isFinite(candle.close) && Number.isFinite(candle.volume) && candle.volume >= 0)
+    .slice()
+    .sort((left, right) => left.time - right.time)
+    .filter((candle, index, all) => index === 0 || candle.time !== all[index - 1].time);
+
+  const points: VwapPoint[] = [];
+  let anchorId: string | null = null;
+  let cumulativeVolume = 0;
+  let cumulativePriceVolume = 0;
+  let cumulativeSquaredPriceVolume = 0;
+  let cumulativeSource = 0;
+  let cumulativeSquaredSource = 0;
+  let sourceCount = 0;
+
+  for (const candle of ordered) {
+    const nextAnchorId = getVwapAnchorId(candle.time, settings.anchorPeriod);
+    if (nextAnchorId !== anchorId) {
+      anchorId = nextAnchorId;
+      cumulativeVolume = 0;
+      cumulativePriceVolume = 0;
+      cumulativeSquaredPriceVolume = 0;
+      cumulativeSource = 0;
+      cumulativeSquaredSource = 0;
+      sourceCount = 0;
+    }
+
+    const source = getVwapSourcePrice(candle, settings.source);
+    if (!Number.isFinite(source)) continue;
+
+    cumulativeSource += source;
+    cumulativeSquaredSource += source * source;
+    sourceCount += 1;
+
+    if (candle.volume > 0) {
+      cumulativeVolume += candle.volume;
+      cumulativePriceVolume += source * candle.volume;
+      cumulativeSquaredPriceVolume += source * source * candle.volume;
+    }
+
+    if (cumulativeVolume <= 0) {
+      // Forex feeds can omit volume. Keep the overlay and its bands visible by
+      // using the unweighted source-price dispersion until volume is available.
+      const value = sourceCount > 0 ? cumulativeSource / sourceCount : source;
+      const variance = sourceCount > 0
+        ? Math.max(cumulativeSquaredSource / sourceCount - value * value, 0)
+        : 0;
+      const standardDeviation = Math.sqrt(variance);
+      const upperBands = settings.bands.map((band) => {
+        if (!band.visible) return null;
+        const distance = settings.bandMode === "percentage"
+          ? value * (Math.max(0, Math.min(1000, band.multiplier)) / 100)
+          : standardDeviation * Math.max(0, Math.min(1000, band.multiplier));
+        return value + distance;
+      });
+      const lowerBands = settings.bands.map((band) => {
+        if (!band.visible) return null;
+        const distance = settings.bandMode === "percentage"
+          ? value * (Math.max(0, Math.min(1000, band.multiplier)) / 100)
+          : standardDeviation * Math.max(0, Math.min(1000, band.multiplier));
+        return value - distance;
+      });
+      points.push({
+        time: candle.time,
+        value,
+        source,
+        cumulativeVolume: 0,
+        cumulativePriceVolume: 0,
+        standardDeviation,
+        anchorId,
+        upperBands,
+        lowerBands,
+      });
+      continue;
+    }
+
+    const value = cumulativePriceVolume / cumulativeVolume;
+    const variance = Math.max(cumulativeSquaredPriceVolume / cumulativeVolume - value * value, 0);
+    const standardDeviation = Math.sqrt(variance);
+    const upperBands = settings.bands.map((band) => {
+      if (!band.visible) return null;
+      const distance = settings.bandMode === "percentage"
+        ? value * (Math.max(0, Math.min(1000, band.multiplier)) / 100)
+        : standardDeviation * Math.max(0, Math.min(1000, band.multiplier));
+      return value + distance;
+    });
+    const lowerBands = settings.bands.map((band) => {
+      if (!band.visible) return null;
+      const distance = settings.bandMode === "percentage"
+        ? value * (Math.max(0, Math.min(1000, band.multiplier)) / 100)
+        : standardDeviation * Math.max(0, Math.min(1000, band.multiplier));
+      return value - distance;
+    });
+
+    points.push({
+      time: candle.time,
+      value,
+      source,
+      cumulativeVolume,
+      cumulativePriceVolume,
+      standardDeviation,
+      anchorId,
+      upperBands,
+      lowerBands,
+    });
+  }
+
+  return points;
+}
+
 export function calculateEma(values: number[], period: number) {
   const result: Array<number | null> = [];
   const multiplier = 2 / (period + 1);
@@ -79,22 +265,30 @@ export function calculateRollingVwap(candles: ChartCandle[], period = 20) {
   const result: Array<number | null> = [];
 
   for (let index = 0; index < candles.length; index += 1) {
-    if (index < period - 1) {
-      result.push(null);
-      continue;
-    }
-
-    const window = candles.slice(index - period + 1, index + 1);
+    // Start with the candles available so the indicator is visible even
+    // when the chart has fewer bars than the selected period.
+    const window = candles.slice(Math.max(0, index - period + 1), index + 1);
     let cumulativeTypicalPriceVolume = 0;
     let cumulativeVolume = 0;
+    let typicalPriceTotal = 0;
 
     for (const candle of window) {
       const typicalPrice = (candle.high + candle.low + candle.close) / 3;
+      typicalPriceTotal += typicalPrice;
       cumulativeTypicalPriceVolume += typicalPrice * candle.volume;
       cumulativeVolume += candle.volume;
     }
 
-    result.push(cumulativeVolume > 0 ? cumulativeTypicalPriceVolume / cumulativeVolume : null);
+    // Some feeds (especially forex/EOD candles) provide zero tick volume.
+    // Use the rolling typical-price mean in that case instead of returning
+    // an empty series.
+    result.push(
+      cumulativeVolume > 0
+        ? cumulativeTypicalPriceVolume / cumulativeVolume
+        : window.length > 0
+          ? typicalPriceTotal / window.length
+          : null,
+    );
   }
 
   return result;
