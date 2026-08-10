@@ -11,6 +11,7 @@ export interface Trade {
   closedAt?: string | null;
   accountId?: string;
   status?: "Open" | "Closed";
+  exitStatus?: "AUTO" | "MANUAL" | "ADMIN" | null;
   executionType?: "Market" | "Limit";
   stopLoss?: number | null;
   takeProfit?: number | null;

@@ -18,6 +18,7 @@ import {
   formatTradingQty,
   TRADING_TABLE_ROW_CLASS,
   TradingOrderStatusBadge,
+  TradingPnlValue,
   TradingSideBadge,
 } from "@/components/shared/trading-table-cells";
 import { TradingTableCard } from "@/components/shared/trading-table-card";
@@ -38,18 +39,22 @@ import type {
   ActiveOrderType,
 } from "@/types/active-orders";
 
-function formatTpSl(takeProfit: number | null, stopLoss: number | null, symbol: string) {
-  if (takeProfit === null && stopLoss === null) {
-    return "-";
-  }
-
-  const tp = takeProfit === null ? "-" : formatTradingPrice(takeProfit, symbol);
-  const sl = stopLoss === null ? "-" : formatTradingPrice(stopLoss, symbol);
-  return `${tp} / ${sl}`;
-}
-
 function formatOrderType(type: ActiveOrderType) {
   return type.charAt(0).toUpperCase() + type.slice(1);
+}
+
+function formatOpenDate(value: string | null | undefined) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+  });
 }
 
 function OrderStatusBadge({ status }: { status: ActiveOrderStatus }) {
@@ -115,6 +120,11 @@ export function ActiveOrdersTable({
         cell: ({ row }) => <TradingSymbolCell symbol={row.original.symbol} />,
       },
       {
+        accessorKey: "openedAt",
+        header: ({ column }) => <SortableColumnHeader column={column} label="Open Date/Day" className="min-w-[230px] justify-start text-left" />,
+        cell: ({ row }) => <span className="inline-block min-w-[230px] text-left text-sm font-medium text-white/60">{formatOpenDate(row.original.openedAt)}</span>,
+      },
+      {
         accessorKey: "side",
         header: ({ column }) => <SortableColumnHeader column={column} label="Side" />,
         cell: ({ row }) => <TradingSideBadge side={row.original.side} />,
@@ -135,7 +145,7 @@ export function ActiveOrdersTable({
       },
       {
         accessorKey: "price",
-        header: ({ column }) => <SortableColumnHeader column={column} label="Price" />,
+        header: ({ column }) => <SortableColumnHeader column={column} label="Entry" />,
         cell: ({ row }) => (
           <span className="text-sm font-medium text-white/60">
             {formatTradingPrice(row.original.price, row.original.symbol)}
@@ -143,13 +153,36 @@ export function ActiveOrdersTable({
         ),
       },
       {
-        id: "tpSl",
-        header: "TP / SL",
+        accessorKey: "markPrice",
+        header: ({ column }) => <SortableColumnHeader column={column} label="Mark Price" />,
         cell: ({ row }) => (
           <span className="text-sm font-medium text-white/60">
-            {formatTpSl(row.original.takeProfit, row.original.stopLoss, row.original.symbol)}
+            {row.original.markPrice == null ? "-" : formatTradingPrice(row.original.markPrice, row.original.symbol)}
           </span>
         ),
+      },
+      {
+        accessorKey: "takeProfit",
+        header: ({ column }) => <SortableColumnHeader column={column} label="TP" />,
+        cell: ({ row }) => (
+          <span className="text-sm font-medium text-white/60">
+            {row.original.takeProfit == null ? "-" : formatTradingPrice(row.original.takeProfit, row.original.symbol)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "stopLoss",
+        header: ({ column }) => <SortableColumnHeader column={column} label="SL" />,
+        cell: ({ row }) => (
+          <span className="text-sm font-medium text-white/60">
+            {row.original.stopLoss == null ? "-" : formatTradingPrice(row.original.stopLoss, row.original.symbol)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "pnl",
+        header: ({ column }) => <SortableColumnHeader column={column} label="P&L" />,
+        cell: ({ row }) => row.original.pnl == null ? "-" : <TradingPnlValue value={row.original.pnl} />,
       },
       {
         accessorKey: "status",
@@ -186,13 +219,28 @@ export function ActiveOrdersTable({
       isCloseAllLoading={isCloseAllLoading}
       className={className}
       >
-      <Table className="min-w-[1040px]">
+      <Table className="min-w-[1700px] table-fixed">
+        <colgroup>
+          <col className="w-[100px]" />
+          <col className="w-[130px]" />
+          <col className="w-[230px]" />
+          <col className="w-[100px]" />
+          <col className="w-[100px]" />
+          <col className="w-[90px]" />
+          <col className="w-[130px]" />
+          <col className="w-[130px]" />
+          <col className="w-[120px]" />
+          <col className="w-[120px]" />
+          <col className="w-[110px]" />
+          <col className="w-[110px]" />
+          <col className="w-[130px]" />
+        </colgroup>
         <TableHeader variant="gradient">
           <TableRow className="hover:bg-transparent">
             {table.getHeaderGroups()[0].headers.map((header) => (
               <TableHead
                 key={header.id}
-                className={header.column.id === "actions" ? "h-11 px-4 text-right text-sm font-medium text-white/60" : "h-11 px-4 text-sm font-medium text-white/60"}
+                  className={header.column.id === "actions" ? "h-11 whitespace-nowrap px-4 text-right text-sm font-medium text-white/60" : "h-11 whitespace-nowrap px-4 text-sm font-medium text-white/60"}
               >
                 {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
               </TableHead>
@@ -206,7 +254,7 @@ export function ActiveOrdersTable({
               {row.getVisibleCells().map((cell) => (
                 <TableCell
                   key={cell.id}
-                  className={cell.column.id === "actions" ? "px-4 py-[5px] text-right" : "px-4 py-[5px]"}
+                    className={cell.column.id === "actions" ? "whitespace-nowrap px-4 py-[5px] text-right" : "whitespace-nowrap px-4 py-[5px]"}
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </TableCell>

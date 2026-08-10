@@ -92,6 +92,7 @@ export type PortfolioTrade = {
   closedAt: string | null;
   pnl: string;
   status: PortfolioStatus;
+  exitStatus: "AUTO" | "MANUAL" | "ADMIN" | null;
   source: string;
   notes: string | null;
   positionId: string | null;

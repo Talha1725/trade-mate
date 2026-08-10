@@ -6,12 +6,15 @@ export type PortfolioOpenPositionRisk = "low" | "medium" | "high";
 export type PortfolioOpenPositionRow = {
   id: string;
   symbol: string;
+  openedAt?: string | null;
   icon: MarketWatchIcon;
   side: OpenPositionSide;
   size: number;
   sizeUnit: string;
   avgEntry: number;
   markPrice: number;
+  takeProfit: number | null;
+  stopLoss: number | null;
   leverage: number;
   pnl: number;
   pnlPercent: number;

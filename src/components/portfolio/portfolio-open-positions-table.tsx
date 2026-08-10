@@ -46,6 +46,20 @@ function formatSignedPercent(value: number) {
   return `${prefix}${Math.abs(value).toFixed(2)}%`;
 }
 
+function formatOpenDate(value: string | null | undefined) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+  });
+}
+
 function SymbolCell({ icon, symbol }: { icon: MarketWatchIcon; symbol: string }) {
   return (
     <div className="flex items-center gap-2.5">
@@ -167,6 +181,11 @@ export function PortfolioOpenPositionsTable({
         ),
       },
       {
+        accessorKey: "openedAt",
+        header: ({ column }) => <SortableColumnHeader column={column} label="Open Date/Day" className="min-w-[230px] justify-start text-left" />,
+        cell: ({ row }) => <span className="inline-block min-w-[230px] whitespace-nowrap text-left text-sm font-medium text-white/60">{formatOpenDate(row.original.openedAt)}</span>,
+      },
+      {
         accessorKey: "side",
         header: ({ column }) => <SortableColumnHeader column={column} label="Side" />,
         cell: ({ row }) => <SideBadge side={row.original.side} />,
@@ -195,6 +214,24 @@ export function PortfolioOpenPositionsTable({
           cell: ({ row }) => (
           <span className="font-medium text-white/60">
             {formatTradingPrice(row.original.markPrice, row.original.symbol)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "takeProfit",
+        header: ({ column }) => <SortableColumnHeader column={column} label="TP" />,
+        cell: ({ row }) => (
+          <span className="font-medium text-white/60">
+            {row.original.takeProfit == null ? "-" : formatTradingPrice(row.original.takeProfit, row.original.symbol)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "stopLoss",
+        header: ({ column }) => <SortableColumnHeader column={column} label="SL" />,
+        cell: ({ row }) => (
+          <span className="font-medium text-white/60">
+            {row.original.stopLoss == null ? "-" : formatTradingPrice(row.original.stopLoss, row.original.symbol)}
           </span>
         ),
       },
@@ -253,7 +290,21 @@ export function PortfolioOpenPositionsTable({
       isCloseAllLoading={isCloseAllLoading}
       className={className}
     >
-      <Table className="min-w-[980px]">
+      <Table className="min-w-[1500px] table-fixed">
+        <colgroup>
+          <col className="w-[130px]" />
+          <col className="w-[230px]" />
+          <col className="w-[110px]" />
+          <col className="w-[100px]" />
+          <col className="w-[130px]" />
+          <col className="w-[130px]" />
+          <col className="w-[120px]" />
+          <col className="w-[120px]" />
+          <col className="w-[110px]" />
+          <col className="w-[110px]" />
+          <col className="w-[110px]" />
+          <col className="w-[130px]" />
+        </colgroup>
         <TableHeader variant="gradient">
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id} className="hover:bg-transparent">
