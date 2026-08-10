@@ -42,6 +42,18 @@ function getFreeCash(account: Pick<PortfolioAccount, "balance" | "marginUsed" | 
   return Math.max(0, toNumber(account.balance) - toNumber(account.marginUsed));
 }
 
+function getExecutablePrice(
+  position: PortfolioPosition,
+  liveQuote?: PriceSocketQuote | null,
+) {
+  if (!liveQuote) {
+    return toNumber(position.currentPrice ?? position.entryPrice);
+  }
+
+  const executablePrice = position.direction === "BUY" ? liveQuote.bid : liveQuote.ask;
+  return toNumber(executablePrice ?? liveQuote.price);
+}
+
 export function formatDateLabel(dateValue: string | null | undefined) {
   if (!dateValue) {
     return "-";
@@ -111,9 +123,7 @@ export function mapPortfolioPositionToPortfolioRow(
   const size = toNumber(position.lots);
   const directionMultiplier = position.direction === "BUY" ? 1 : -1;
   const spec = getInstrumentSpec(position.symbol);
-  const markPrice = liveQuote?.price != null
-    ? toNumber(liveQuote.price)
-    : toNumber(position.currentPrice ?? position.entryPrice);
+  const markPrice = getExecutablePrice(position, liveQuote);
   const priceDelta = (markPrice - entryPrice) * directionMultiplier;
   const calculatedPnl = calculateNotionalUsd(position.symbol, size, priceDelta, quotePrices);
   const pnl = calculatedPnl ?? toNumber(position.floatingPnl);
@@ -147,9 +157,7 @@ export function mapPortfolioPositionToActiveOrder(
   const entryPrice = toNumber(position.entryPrice);
   const size = toNumber(position.lots);
   const directionMultiplier = position.direction === "BUY" ? 1 : -1;
-  const markPrice = liveQuote?.price != null
-    ? toNumber(liveQuote.price)
-    : toNumber(position.currentPrice ?? position.entryPrice);
+  const markPrice = getExecutablePrice(position, liveQuote);
   const priceDelta = (markPrice - entryPrice) * directionMultiplier;
   const calculatedPnl = liveQuote
     ? calculateNotionalUsd(position.symbol, size, priceDelta)
