@@ -78,6 +78,7 @@ export type PriceSocketPortfolioMessage = {
     closedAt: string | null;
     pnl: string;
     status: "OPEN" | "CLOSED";
+    exitStatus: "AUTO" | "MANUAL" | "ADMIN" | null;
     source: "USER" | "ADMIN" | "AGENT";
     notes: string | null;
     positionId: string | null;

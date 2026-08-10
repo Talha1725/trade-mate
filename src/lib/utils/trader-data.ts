@@ -42,6 +42,18 @@ function getFreeCash(account: Pick<PortfolioAccount, "balance" | "marginUsed" | 
   return Math.max(0, toNumber(account.balance) - toNumber(account.marginUsed));
 }
 
+function getExecutablePrice(
+  position: PortfolioPosition,
+  liveQuote?: PriceSocketQuote | null,
+) {
+  if (!liveQuote) {
+    return toNumber(position.currentPrice ?? position.entryPrice);
+  }
+
+  const executablePrice = position.direction === "BUY" ? liveQuote.bid : liveQuote.ask;
+  return toNumber(executablePrice ?? liveQuote.price);
+}
+
 export function formatDateLabel(dateValue: string | null | undefined) {
   if (!dateValue) {
     return "-";
@@ -111,9 +123,7 @@ export function mapPortfolioPositionToPortfolioRow(
   const size = toNumber(position.lots);
   const directionMultiplier = position.direction === "BUY" ? 1 : -1;
   const spec = getInstrumentSpec(position.symbol);
-  const markPrice = liveQuote?.price != null
-    ? toNumber(liveQuote.price)
-    : toNumber(position.currentPrice ?? position.entryPrice);
+  const markPrice = getExecutablePrice(position, liveQuote);
   const priceDelta = (markPrice - entryPrice) * directionMultiplier;
   const calculatedPnl = calculateNotionalUsd(position.symbol, size, priceDelta, quotePrices);
   const pnl = calculatedPnl ?? toNumber(position.floatingPnl);
@@ -123,12 +133,15 @@ export function mapPortfolioPositionToPortfolioRow(
   return {
     id: position.id,
     symbol: position.symbol,
+    openedAt: position.openedAt,
     icon: resolveMarketWatchIcon(position.symbol) ?? "bitcoin",
     side: position.direction === "BUY" ? "long" : "short",
     size,
     sizeUnit: position.symbol.replace(/USD$/i, "") || position.symbol,
     avgEntry: entryPrice,
     markPrice,
+    takeProfit: position.takeProfit != null ? toNumber(position.takeProfit) : null,
+    stopLoss: position.stopLoss != null ? toNumber(position.stopLoss) : null,
     leverage: spec.leverage,
     pnl,
     pnlPercent,
@@ -137,16 +150,34 @@ export function mapPortfolioPositionToPortfolioRow(
   };
 }
 
-export function mapPortfolioPositionToActiveOrder(position: PortfolioPosition): ActiveOrderRow {
+export function mapPortfolioPositionToActiveOrder(
+  position: PortfolioPosition,
+  liveQuote?: PriceSocketQuote | null,
+): ActiveOrderRow {
+  const entryPrice = toNumber(position.entryPrice);
+  const size = toNumber(position.lots);
+  const directionMultiplier = position.direction === "BUY" ? 1 : -1;
+  const markPrice = getExecutablePrice(position, liveQuote);
+  const priceDelta = (markPrice - entryPrice) * directionMultiplier;
+  const calculatedPnl = liveQuote
+    ? calculateNotionalUsd(position.symbol, size, priceDelta)
+    : null;
+
   return {
     id: position.id,
     displayId: position.id.slice(-8).toUpperCase(),
     symbol: position.symbol,
+    openedAt: position.openedAt,
     icon: resolveMarketWatchIcon(position.symbol) ?? "bitcoin",
     side: position.direction === "BUY" ? "buy" : "sell",
     type: "market",
-    qty: toNumber(position.lots),
-    price: toNumber(position.entryPrice),
+    qty: size,
+    price: entryPrice,
+    // An active position has not exited yet. Keep this separate from the
+    // live mark price so the Exit column does not fluctuate while open.
+    exitPrice: null,
+    markPrice: markPrice,
+    pnl: calculatedPnl ?? toNumber(position.floatingPnl),
     takeProfit: position.takeProfit ? toNumber(position.takeProfit) : null,
     stopLoss: position.stopLoss ? toNumber(position.stopLoss) : null,
     status: "filled",
@@ -169,6 +200,7 @@ export function mapPortfolioTradeToTrade(trade: PortfolioTrade): Trade {
     openedAt: trade.openedAt,
     closedAt: trade.closedAt,
     status: trade.status === "OPEN" ? "Open" : "Closed",
+    exitStatus: trade.exitStatus ?? null,
     stopLoss: trade.stopLoss ? toNumber(trade.stopLoss) : null,
     takeProfit: trade.takeProfit ? toNumber(trade.takeProfit) : null,
     notes: trade.notes,

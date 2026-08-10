@@ -38,15 +38,29 @@ import { Spinner } from "@/components/ui/spinner";
 import { downloadTextFile } from "@/lib/utils/download";
 import { mockTrades } from "@/lib/mock-data/trades";
 import { SIDEBAR_ICONS } from "@/lib/mock-data/sidebar-icons";
-import { formatDateTimeLabel } from "@/lib/utils/trader-data";
 import { cn } from "@/lib/utils";
 import type { TradeHistoryTableProps } from "@/types/trade-history";
 import type { Trade } from "@/types/trade";
 
+function formatHistoryDateTime(value: string | null | undefined) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+
+  return date.toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+  });
+}
+
 function formatTradeDateTimes(trade: Trade) {
   return {
-    opened: formatDateTimeLabel(trade.openedAt ?? trade.time),
-    closed: formatDateTimeLabel(trade.closedAt),
+    opened: formatHistoryDateTime(trade.openedAt ?? trade.time),
+    closed: formatHistoryDateTime(trade.closedAt),
   };
 }
 
@@ -94,6 +108,15 @@ function TradeHistoryRowCells({ trade }: { trade: Trade }) {
       </TableCell>
       <TableCell className="px-4 py-2 text-sm font-medium text-white/60">
         {formatTradingPrice(trade.closeP, trade.symbol)}
+      </TableCell>
+      <TableCell className="px-4 py-2 text-sm font-medium text-white/60">
+        {trade.takeProfit == null ? "-" : formatTradingPrice(trade.takeProfit, trade.symbol)}
+      </TableCell>
+      <TableCell className="px-4 py-2 text-sm font-medium text-white/60">
+        {trade.stopLoss == null ? "-" : formatTradingPrice(trade.stopLoss, trade.symbol)}
+      </TableCell>
+      <TableCell className="px-4 py-2 text-sm font-medium text-white/60">
+        {trade.exitStatus ? trade.exitStatus.charAt(0) + trade.exitStatus.slice(1).toLowerCase() : "-"}
       </TableCell>
       <TableCell className="px-4 py-2">
         <TradingPnlValue value={trade.profit} />
@@ -154,6 +177,21 @@ const tradeHistoryColumns: ColumnDef<Trade>[] = [
     cell: ({ row }) => <span>{formatTradingPrice(row.original.closeP, row.original.symbol)}</span>,
   },
   {
+    accessorKey: "takeProfit",
+    header: ({ column }) => <SortableColumnHeader column={column} label="TP" />,
+    cell: ({ row }) => row.original.takeProfit == null ? "-" : formatTradingPrice(row.original.takeProfit, row.original.symbol),
+  },
+  {
+    accessorKey: "stopLoss",
+    header: ({ column }) => <SortableColumnHeader column={column} label="SL" />,
+    cell: ({ row }) => row.original.stopLoss == null ? "-" : formatTradingPrice(row.original.stopLoss, row.original.symbol),
+  },
+  {
+    accessorKey: "exitStatus",
+    header: ({ column }) => <SortableColumnHeader column={column} label="Exit Status" />,
+    cell: ({ row }) => row.original.exitStatus ? row.original.exitStatus.charAt(0) + row.original.exitStatus.slice(1).toLowerCase() : "-",
+  },
+  {
     accessorKey: "profit",
     header: ({ column }) => <SortableColumnHeader column={column} label="P&L" />,
     cell: ({ row }) => <TradingPnlValue value={row.original.profit} />,
@@ -211,6 +249,9 @@ export function TradeHistoryTable({
       "Qty",
       "Entry",
       "Exit",
+      "TP",
+      "SL",
+      "Exit Status",
       "P&L",
       "Status",
     ];
@@ -225,6 +266,9 @@ export function TradeHistoryTable({
         trade.vol,
         trade.openP,
         trade.closeP,
+        trade.takeProfit ?? "",
+        trade.stopLoss ?? "",
+        trade.exitStatus ?? "",
         trade.profit.toFixed(2),
         trade.status ?? "Closed",
       ];
@@ -285,7 +329,22 @@ export function TradeHistoryTable({
       ) : (
         <div className="space-y-4">
           <ResponsiveTableScroll>
-            <Table className="min-w-[1120px]">
+            <Table className="min-w-[1500px] table-fixed whitespace-nowrap">
+              <colgroup>
+                <col className="w-[180px]" />
+                <col className="w-[180px]" />
+                <col className="w-[140px]" />
+                <col className="w-[100px]" />
+                <col className="w-[100px]" />
+                <col className="w-[90px]" />
+                <col className="w-[120px]" />
+                <col className="w-[120px]" />
+                <col className="w-[120px]" />
+                <col className="w-[120px]" />
+                <col className="w-[130px]" />
+                <col className="w-[110px]" />
+                <col className="w-[100px]" />
+              </colgroup>
               <TableHeader variant="gradient">
                 <TableRow className="hover:bg-transparent">
                   {table.getHeaderGroups()[0]?.headers.map((header) => (

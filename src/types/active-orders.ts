@@ -10,11 +10,15 @@ export type ActiveOrderRow = {
   id: string;
   displayId: string;
   symbol: string;
+  openedAt?: string | null;
   icon: MarketWatchIcon;
   side: ActiveOrderSide;
   type: ActiveOrderType;
   qty: number;
   price: number;
+  exitPrice?: number | null;
+  markPrice?: number | null;
+  pnl?: number | null;
   takeProfit: number | null;
   stopLoss: number | null;
   status: ActiveOrderStatus;
