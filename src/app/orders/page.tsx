@@ -300,7 +300,7 @@ export default function OrdersPage() {
     return liveOverview.orderBook;
   }, [liveOverview, liveQuoteForSymbol, selectedAsset?.category, selectedSymbol]);
 
-    const handleClosePosition = React.useCallback(
+  const handleClosePosition = React.useCallback(
         async (positionId: string) => {
             if (!token) return;
 
@@ -337,6 +337,18 @@ export default function OrdersPage() {
         },
         [refreshOverview, token],
     );
+
+  const handleModifyProtection = React.useCallback(
+    async (input: { positionId: string; stopLoss: number | null; takeProfit: number | null }) => {
+      if (!token) throw new Error("You must be signed in to modify protection.");
+      const result = await ordersApi.modifyProtection(input, token);
+      toast.success("Trade updated successfully");
+      window.dispatchEvent(new Event("trade-mate:positions-changed"));
+      await refreshOverview();
+      return { status: result.sync.status };
+    },
+    [refreshOverview, token],
+  );
 
   const handleCloseAll = React.useCallback(async () => {
     if (!token || activeOrders.length === 0) return;
@@ -479,6 +491,7 @@ export default function OrdersPage() {
         <ActiveOrdersTable
           orders={activeOrders}
           onCancel={handleClosePosition}
+          onModifyProtection={handleModifyProtection}
           onCloseAll={handleCloseAll}
           isCloseAllLoading={isClosingAll}
           onExport={handleExport}

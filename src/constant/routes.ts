@@ -20,6 +20,7 @@ export const ROUTES = {
     LIST:           `/api/trades`,
     OPEN:           `/api/trades/open`,
     CLOSE:          `/api/trades/close`,
+    MODIFY:         `/api/trades/modify`,
     ACCOUNT: (id: string) => `/api/account/${id}`,
     BY_ID:  (id: string) => `/api/trades/${id}`,
     CREATE:         `/api/trades/create`,

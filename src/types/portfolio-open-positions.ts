@@ -28,5 +28,10 @@ export type PortfolioOpenPositionsTableProps = {
   onCloseAll?: () => void;
   isCloseAllLoading?: boolean;
   onCancel?: (positionId: string) => void | Promise<void>;
+  onModifyProtection?: (input: {
+    positionId: string;
+    stopLoss: number | null;
+    takeProfit: number | null;
+  }) => Promise<{ status: "PENDING" | "SENT" | "FAILED" | "SKIPPED" }>;
   className?: string;
 };

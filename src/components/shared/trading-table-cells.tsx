@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils";
 
 export const TRADING_TABLE_ROW_CLASS =
-  "border-white/10 hover:bg-white/5 data-[state=selected]:bg-white/5";
+  "border-white/10 hover:bg-white/5 data-[state=selected]:bg-white/5 has-aria-expanded:!bg-muted/10";
 
 const FOREX_PREFIXES = ["AUD", "CAD", "CHF", "EUR", "GBP", "JPY", "NZD", "USD"];
 
