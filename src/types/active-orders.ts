@@ -31,5 +31,10 @@ export type ActiveOrdersTableProps = {
   onCloseAll?: () => void;
   isCloseAllLoading?: boolean;
   onCancel?: (orderId: string) => void;
+  onModifyProtection?: (input: {
+    positionId: string;
+    stopLoss: number | null;
+    takeProfit: number | null;
+  }) => Promise<{ status: "PENDING" | "SENT" | "FAILED" | "SKIPPED" }>;
   className?: string;
 };
