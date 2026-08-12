@@ -13,6 +13,7 @@ import { PortfolioOpenPositionsTable } from "@/components/portfolio/portfolio-op
 import { PortfolioTopMoversCard } from "@/components/portfolio/portfolio-top-movers-card";
 import { PortfolioValueChart } from "@/components/portfolio/portfolio-value-chart";
 import { portfolioApi } from "@/lib/services/portfolio.api";
+import { ordersApi } from "@/lib/services/orders.api";
 import { terminalApi } from "@/lib/services/terminal.api";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useSelectedAccountStore } from "@/lib/stores/account-store";
@@ -376,6 +377,19 @@ export default function PortfolioPage() {
         [refreshOverview, refreshSnapshot, token],
     );
 
+    const handleModifyProtection = React.useCallback(
+        async (input: { positionId: string; stopLoss: number | null; takeProfit: number | null }) => {
+            if (!token) throw new Error("You must be signed in to modify protection.");
+      const result = await ordersApi.modifyProtection(input, token);
+      toast.success("Trade updated successfully");
+            window.dispatchEvent(new Event("trade-mate:positions-changed"));
+            await refreshSnapshot();
+            await refreshOverview();
+            return { status: result.sync.status };
+        },
+        [refreshOverview, refreshSnapshot, token],
+    );
+
     const handleCloseAll = React.useCallback(async () => {
         if (!token || positions.length === 0) return;
 
@@ -451,6 +465,7 @@ export default function PortfolioPage() {
                 <PortfolioOpenPositionsTable
                     positions={positions}
                     onCancel={handleClosePosition}
+                    onModifyProtection={handleModifyProtection}
                     onCloseAll={handleCloseAll}
                     isCloseAllLoading={isClosingAll}
                     onExport={handleExport}

@@ -20,12 +20,16 @@ export function formatPortfolioValueTimestamp(timestamp: number, timeframe: Trad
     return date.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "UTC",
+      timeZoneName: "short",
     });
   }
 
   return date.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
+    timeZone: "UTC",
+    timeZoneName: "short",
   });
 }
 

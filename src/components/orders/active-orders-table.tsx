@@ -9,8 +9,6 @@ import {
   type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { Loader2Icon } from "lucide-react";
-import { IoCloseCircle } from "react-icons/io5";
 
 import { TradingSymbolCell } from "@/components/shared/trading-symbol-cell";
 import {
@@ -18,9 +16,11 @@ import {
   formatTradingQty,
   TRADING_TABLE_ROW_CLASS,
   TradingOrderStatusBadge,
+  TradingPnlValue,
   TradingSideBadge,
 } from "@/components/shared/trading-table-cells";
 import { TradingTableCard } from "@/components/shared/trading-table-card";
+import { TableRowActionsMenu } from "@/components/shared/table-row-actions-menu";
 import { SortableColumnHeader } from "@/components/sortable-column-header";
 import {
   Table,
@@ -38,18 +38,22 @@ import type {
   ActiveOrderType,
 } from "@/types/active-orders";
 
-function formatTpSl(takeProfit: number | null, stopLoss: number | null, symbol: string) {
-  if (takeProfit === null && stopLoss === null) {
-    return "-";
-  }
-
-  const tp = takeProfit === null ? "-" : formatTradingPrice(takeProfit, symbol);
-  const sl = stopLoss === null ? "-" : formatTradingPrice(stopLoss, symbol);
-  return `${tp} / ${sl}`;
-}
-
 function formatOrderType(type: ActiveOrderType) {
   return type.charAt(0).toUpperCase() + type.slice(1);
+}
+
+function formatOpenDate(value: string | null | undefined) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+  });
 }
 
 function OrderStatusBadge({ status }: { status: ActiveOrderStatus }) {
@@ -61,42 +65,13 @@ function OrderStatusBadge({ status }: { status: ActiveOrderStatus }) {
   );
 }
 
-function CancelButton({ onClick }: { onClick?: () => void | Promise<void> }) {
-  const [isPending, setIsPending] = useState(false);
-
-  const handleClick = async () => {
-    if (!onClick) return;
-    setIsPending(true);
-    try {
-      await onClick();
-    } finally {
-      setIsPending(false);
-    }
-  };
-
-  return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={isPending}
-      className="inline-flex cursor-pointer items-center gap-2 rounded-[10px] border border-destructive/10 bg-destructive/10 px-3.5 py-2 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      {isPending ? (
-        <Loader2Icon className="size-4 animate-spin text-destructive" />
-      ) : (
-        <IoCloseCircle className="size-4 text-destructive" />
-      )}
-      Close
-    </button>
-  );
-}
-
 export function ActiveOrdersTable({
   title = "Active Orders",
   orders = mockActiveOrders,
   onExport,
   onCloseAll,
   onCancel,
+  onModifyProtection,
   isCloseAllLoading,
   className,
 }: ActiveOrdersTableProps) {
@@ -113,6 +88,11 @@ export function ActiveOrdersTable({
         accessorKey: "symbol",
         header: ({ column }) => <SortableColumnHeader column={column} label="Symbol" />,
         cell: ({ row }) => <TradingSymbolCell symbol={row.original.symbol} />,
+      },
+      {
+        accessorKey: "openedAt",
+        header: ({ column }) => <SortableColumnHeader column={column} label="Open Date/Day" className="min-w-[230px] justify-start text-left" />,
+        cell: ({ row }) => <span className="inline-block min-w-[230px] text-left text-sm font-medium text-white/60">{formatOpenDate(row.original.openedAt)}</span>,
       },
       {
         accessorKey: "side",
@@ -135,7 +115,7 @@ export function ActiveOrdersTable({
       },
       {
         accessorKey: "price",
-        header: ({ column }) => <SortableColumnHeader column={column} label="Price" />,
+        header: ({ column }) => <SortableColumnHeader column={column} label="Entry" />,
         cell: ({ row }) => (
           <span className="text-sm font-medium text-white/60">
             {formatTradingPrice(row.original.price, row.original.symbol)}
@@ -143,13 +123,36 @@ export function ActiveOrdersTable({
         ),
       },
       {
-        id: "tpSl",
-        header: "TP / SL",
+        accessorKey: "markPrice",
+        header: ({ column }) => <SortableColumnHeader column={column} label="Mark Price" />,
         cell: ({ row }) => (
           <span className="text-sm font-medium text-white/60">
-            {formatTpSl(row.original.takeProfit, row.original.stopLoss, row.original.symbol)}
+            {row.original.markPrice == null ? "-" : formatTradingPrice(row.original.markPrice, row.original.symbol)}
           </span>
         ),
+      },
+      {
+        accessorKey: "takeProfit",
+        header: ({ column }) => <SortableColumnHeader column={column} label="TP" />,
+        cell: ({ row }) => (
+          <span className="text-sm font-medium text-white/60">
+            {row.original.takeProfit == null ? "-" : formatTradingPrice(row.original.takeProfit, row.original.symbol)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "stopLoss",
+        header: ({ column }) => <SortableColumnHeader column={column} label="SL" />,
+        cell: ({ row }) => (
+          <span className="text-sm font-medium text-white/60">
+            {row.original.stopLoss == null ? "-" : formatTradingPrice(row.original.stopLoss, row.original.symbol)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "pnl",
+        header: ({ column }) => <SortableColumnHeader column={column} label="P&L" />,
+        cell: ({ row }) => row.original.pnl == null ? "-" : <TradingPnlValue value={row.original.pnl} />,
       },
       {
         accessorKey: "status",
@@ -160,13 +163,21 @@ export function ActiveOrdersTable({
         id: "actions",
         header: "Actions",
         cell: ({ row }) => (
-          <div className="text-right">
-            <CancelButton onClick={() => onCancel?.(row.original.id)} />
-          </div>
+          <TableRowActionsMenu
+            symbol={row.original.symbol}
+            side={row.original.side}
+            positionId={row.original.id}
+            lots={row.original.qty}
+            markPrice={row.original.markPrice}
+            stopLoss={row.original.stopLoss}
+            takeProfit={row.original.takeProfit}
+            onModifyProtection={onModifyProtection}
+            onCancel={() => onCancel?.(row.original.id)}
+          />
         ),
       },
     ],
-    [onCancel],
+    [onCancel, onModifyProtection],
   );
 
   const table = useReactTable({
@@ -186,13 +197,28 @@ export function ActiveOrdersTable({
       isCloseAllLoading={isCloseAllLoading}
       className={className}
       >
-      <Table className="min-w-[1040px]">
+      <Table className="min-w-[1700px] table-fixed">
+        <colgroup>
+          <col className="w-[100px]" />
+          <col className="w-[130px]" />
+          <col className="w-[230px]" />
+          <col className="w-[100px]" />
+          <col className="w-[100px]" />
+          <col className="w-[90px]" />
+          <col className="w-[130px]" />
+          <col className="w-[130px]" />
+          <col className="w-[120px]" />
+          <col className="w-[120px]" />
+          <col className="w-[110px]" />
+          <col className="w-[110px]" />
+          <col className="w-[130px]" />
+        </colgroup>
         <TableHeader variant="gradient">
           <TableRow className="hover:bg-transparent">
             {table.getHeaderGroups()[0].headers.map((header) => (
               <TableHead
                 key={header.id}
-                className={header.column.id === "actions" ? "h-11 px-4 text-right text-sm font-medium text-white/60" : "h-11 px-4 text-sm font-medium text-white/60"}
+                  className={header.column.id === "actions" ? "h-11 w-[50px] min-w-[50px] whitespace-nowrap px-4 text-right text-sm font-medium text-white/60" : "h-11 whitespace-nowrap px-4 text-sm font-medium text-white/60"}
               >
                 {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
               </TableHead>
@@ -206,7 +232,7 @@ export function ActiveOrdersTable({
               {row.getVisibleCells().map((cell) => (
                 <TableCell
                   key={cell.id}
-                  className={cell.column.id === "actions" ? "px-4 py-[5px] text-right" : "px-4 py-[5px]"}
+                    className={cell.column.id === "actions" ? "w-[50px] min-w-[50px] whitespace-nowrap px-4 py-[5px] text-right" : "whitespace-nowrap px-4 py-[5px]"}
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </TableCell>

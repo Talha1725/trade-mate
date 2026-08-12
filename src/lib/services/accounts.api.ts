@@ -80,6 +80,7 @@ function mapTrade(t: any): Trade {
     closeP: t.exitPrice ? parseFloat(t.exitPrice) : 0,
     profit: parseFloat(t.pnl),
     status: t.status === "OPEN" ? "Open" : "Closed",
+    exitStatus: t.exitStatus ?? null,
     time: t.openedAt,
     stopLoss: t.stopLoss != null ? parseFloat(t.stopLoss) : null,
     takeProfit: t.takeProfit != null ? parseFloat(t.takeProfit) : null,

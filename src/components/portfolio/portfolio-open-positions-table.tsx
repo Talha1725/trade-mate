@@ -4,9 +4,8 @@ import * as React from "react";
 import { flexRender, getCoreRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from "@tanstack/react-table";
 import Image from "next/image";
 import { IoIosTrendingDown, IoIosTrendingUp } from "react-icons/io";
-import { Loader2Icon } from "lucide-react";
-import { IoCloseCircle } from "react-icons/io5";
 import { TradingTableCard } from "@/components/shared/trading-table-card";
+import { TableRowActionsMenu } from "@/components/shared/table-row-actions-menu";
 import { SortableColumnHeader } from "@/components/sortable-column-header";
 import { AssetIcon } from "@/components/shared/asset-icon";
 import { formatTradingPrice } from "@/components/shared/trading-table-cells";
@@ -44,6 +43,20 @@ function formatSignedPercent(value: number) {
 
   const prefix = value > 0 ? "+" : "-";
   return `${prefix}${Math.abs(value).toFixed(2)}%`;
+}
+
+function formatOpenDate(value: string | null | undefined) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+  });
 }
 
 function SymbolCell({ icon, symbol }: { icon: MarketWatchIcon; symbol: string }) {
@@ -117,41 +130,12 @@ const riskOrder: Record<PortfolioOpenPositionRisk, number> = {
   high: 2,
 };
 
-function CancelButton({ positionId, onCancel }: { positionId: string; onCancel?: (positionId: string) => void | Promise<void> }) {
-  const [isPending, setIsPending] = React.useState(false);
-
-  const handleClick = async () => {
-    if (!onCancel) return;
-    setIsPending(true);
-    try {
-      await onCancel(positionId);
-    } finally {
-      setIsPending(false);
-    }
-  };
-
-  return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={isPending}
-      className="inline-flex cursor-pointer items-center gap-2 rounded-[10px] border border-destructive/10 bg-destructive/10 px-3.5 py-2 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50 disabled:cursor-not-allowed"
-    >
-      {isPending ? (
-        <Loader2Icon className="size-4 animate-spin text-destructive" />
-      ) : (
-        <IoCloseCircle className="size-4 text-destructive" />
-      )}
-      Close
-    </button>
-  );
-}
-
 export function PortfolioOpenPositionsTable({
   positions = [],
   onExport,
   onCloseAll,
   onCancel,
+  onModifyProtection,
   isCloseAllLoading,
   className,
 }: PortfolioOpenPositionsTableProps) {
@@ -165,6 +149,11 @@ export function PortfolioOpenPositionsTable({
         cell: ({ row }) => (
           <SymbolCell icon={row.original.icon} symbol={row.original.symbol} />
         ),
+      },
+      {
+        accessorKey: "openedAt",
+        header: ({ column }) => <SortableColumnHeader column={column} label="Open Date/Day" className="min-w-[230px] justify-start text-left" />,
+        cell: ({ row }) => <span className="inline-block min-w-[230px] whitespace-nowrap text-left text-sm font-medium text-white/60">{formatOpenDate(row.original.openedAt)}</span>,
       },
       {
         accessorKey: "side",
@@ -195,6 +184,24 @@ export function PortfolioOpenPositionsTable({
           cell: ({ row }) => (
           <span className="font-medium text-white/60">
             {formatTradingPrice(row.original.markPrice, row.original.symbol)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "takeProfit",
+        header: ({ column }) => <SortableColumnHeader column={column} label="TP" />,
+        cell: ({ row }) => (
+          <span className="font-medium text-white/60">
+            {row.original.takeProfit == null ? "-" : formatTradingPrice(row.original.takeProfit, row.original.symbol)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "stopLoss",
+        header: ({ column }) => <SortableColumnHeader column={column} label="SL" />,
+        cell: ({ row }) => (
+          <span className="font-medium text-white/60">
+            {row.original.stopLoss == null ? "-" : formatTradingPrice(row.original.stopLoss, row.original.symbol)}
           </span>
         ),
       },
@@ -229,11 +236,21 @@ export function PortfolioOpenPositionsTable({
         id: "actions",
         header: "Actions",
         cell: ({ row }) => (
-          <CancelButton positionId={row.original.id} onCancel={onCancel} />
+          <TableRowActionsMenu
+            symbol={row.original.symbol}
+            side={row.original.side}
+            positionId={row.original.id}
+            lots={row.original.size}
+            markPrice={row.original.markPrice}
+            stopLoss={row.original.stopLoss}
+            takeProfit={row.original.takeProfit}
+            onModifyProtection={onModifyProtection}
+            onCancel={() => onCancel?.(row.original.id)}
+          />
         ),
       },
     ],
-    [onCancel],
+    [onCancel, onModifyProtection],
   );
 
   const table = useReactTable({
@@ -253,7 +270,21 @@ export function PortfolioOpenPositionsTable({
       isCloseAllLoading={isCloseAllLoading}
       className={className}
     >
-      <Table className="min-w-[980px]">
+      <Table className="min-w-[1500px] table-fixed">
+        <colgroup>
+          <col className="w-[130px]" />
+          <col className="w-[230px]" />
+          <col className="w-[110px]" />
+          <col className="w-[100px]" />
+          <col className="w-[130px]" />
+          <col className="w-[130px]" />
+          <col className="w-[120px]" />
+          <col className="w-[120px]" />
+          <col className="w-[110px]" />
+          <col className="w-[110px]" />
+          <col className="w-[110px]" />
+          <col className="w-[130px]" />
+        </colgroup>
         <TableHeader variant="gradient">
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id} className="hover:bg-transparent">
@@ -262,7 +293,7 @@ export function PortfolioOpenPositionsTable({
                   key={header.id}
                   className={cn(
                     "h-11 px-4 text-sm font-medium text-white/60",
-                    header.column.id === "actions" && "text-right",
+                    header.column.id === "actions" && "w-[50px] min-w-[50px] text-right",
                   )}
                 >
                   {header.isPlaceholder
@@ -286,7 +317,7 @@ export function PortfolioOpenPositionsTable({
                     key={cell.id}
                     className={cn(
                       "px-4 py-1.5",
-                      cell.column.id === "actions" && "text-right",
+                      cell.column.id === "actions" && "w-[50px] min-w-[50px] whitespace-nowrap text-right",
                     )}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}

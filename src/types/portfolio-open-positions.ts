@@ -6,12 +6,15 @@ export type PortfolioOpenPositionRisk = "low" | "medium" | "high";
 export type PortfolioOpenPositionRow = {
   id: string;
   symbol: string;
+  openedAt?: string | null;
   icon: MarketWatchIcon;
   side: OpenPositionSide;
   size: number;
   sizeUnit: string;
   avgEntry: number;
   markPrice: number;
+  takeProfit: number | null;
+  stopLoss: number | null;
   leverage: number;
   pnl: number;
   pnlPercent: number;
@@ -25,5 +28,10 @@ export type PortfolioOpenPositionsTableProps = {
   onCloseAll?: () => void;
   isCloseAllLoading?: boolean;
   onCancel?: (positionId: string) => void | Promise<void>;
+  onModifyProtection?: (input: {
+    positionId: string;
+    stopLoss: number | null;
+    takeProfit: number | null;
+  }) => Promise<{ status: "PENDING" | "SENT" | "FAILED" | "SKIPPED" }>;
   className?: string;
 };

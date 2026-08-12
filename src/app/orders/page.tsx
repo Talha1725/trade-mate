@@ -133,12 +133,21 @@ export default function OrdersPage() {
   }, [accountListLoaded, hasHydrated, resolvedAccountId, selectedAccountId, setSelectedAccountId]);
 
   const [overview, setOverview] = React.useState<OrderOverviewResponse | null>(null);
-  const [liveQuote, setLiveQuote] = React.useState<PriceSocketQuote | null>(null);
+  const [liveQuotes, setLiveQuotes] = React.useState<Record<string, PriceSocketQuote>>({});
   const [isClosingAll, setIsClosingAll] = React.useState(false);
   const closeAllSettlingRef = React.useRef(false);
   const closeAllSettlingTimeoutRef = React.useRef<number | null>(null);
   const streamAccountId = overview?.account.id ?? resolvedAccountId;
-  const liveQuoteForSymbol = liveQuote?.symbol.toUpperCase() === selectedSymbol.toUpperCase() ? liveQuote : null;
+  const liveQuoteForSymbol = liveQuotes[selectedSymbol.toUpperCase()] ?? null;
+  const openPositionSymbolsKey = (overview?.positions ?? [])
+    .filter((position) => position.status === "OPEN")
+    .map((position) => position.symbol.toUpperCase())
+    .sort()
+    .join("|");
+  const subscribedSymbols = React.useMemo(
+    () => Array.from(new Set([selectedSymbol.toUpperCase(), ...openPositionSymbolsKey.split("|").filter(Boolean)])),
+    [openPositionSymbolsKey, selectedSymbol],
+  );
 
   const hasOpenPositions = React.useCallback(
     (positions: OrderOverviewResponse["positions"]) =>
@@ -198,13 +207,16 @@ export default function OrdersPage() {
 
   usePriceStream({
     enabled: Boolean(token && selectedSymbol && accountListLoaded && resolvedAccountId),
-    symbols: [selectedSymbol],
+    symbols: subscribedSymbols,
     accountIds: streamAccountId ? [streamAccountId] : [],
     onQuotes: (quotes) => {
-      const quote = quotes.find((item) => item.symbol.toUpperCase() === selectedSymbol.toUpperCase());
-      if (quote) {
-        setLiveQuote(quote);
-      }
+      setLiveQuotes((current) => {
+        const next = { ...current };
+        for (const quote of quotes) {
+          next[quote.symbol.toUpperCase()] = quote;
+        }
+        return next;
+      });
     },
     onPortfolio: (payload: PriceSocketPortfolioMessage) => {
       if (!streamAccountId || !payload.accountIds.includes(streamAccountId)) {
@@ -251,8 +263,11 @@ export default function OrdersPage() {
     [liveOverview?.account, liveOverview?.positions, liveOverview?.trades],
   );
   const activeOrders = React.useMemo(
-    () => liveOverview?.positions.map(mapPortfolioPositionToActiveOrder) ?? [],
-    [liveOverview?.positions],
+    () =>
+      liveOverview?.positions.map((position) =>
+        mapPortfolioPositionToActiveOrder(position, liveQuotes[position.symbol.toUpperCase()] ?? null),
+      ) ?? [],
+    [liveOverview?.positions, liveQuotes],
   );
   const recentTrades = React.useMemo(
     () =>
@@ -285,7 +300,7 @@ export default function OrdersPage() {
     return liveOverview.orderBook;
   }, [liveOverview, liveQuoteForSymbol, selectedAsset?.category, selectedSymbol]);
 
-    const handleClosePosition = React.useCallback(
+  const handleClosePosition = React.useCallback(
         async (positionId: string) => {
             if (!token) return;
 
@@ -322,6 +337,18 @@ export default function OrdersPage() {
         },
         [refreshOverview, token],
     );
+
+  const handleModifyProtection = React.useCallback(
+    async (input: { positionId: string; stopLoss: number | null; takeProfit: number | null }) => {
+      if (!token) throw new Error("You must be signed in to modify protection.");
+      const result = await ordersApi.modifyProtection(input, token);
+      toast.success("Trade updated successfully");
+      window.dispatchEvent(new Event("trade-mate:positions-changed"));
+      await refreshOverview();
+      return { status: result.sync.status };
+    },
+    [refreshOverview, token],
+  );
 
   const handleCloseAll = React.useCallback(async () => {
     if (!token || activeOrders.length === 0) return;
@@ -464,6 +491,7 @@ export default function OrdersPage() {
         <ActiveOrdersTable
           orders={activeOrders}
           onCancel={handleClosePosition}
+          onModifyProtection={handleModifyProtection}
           onCloseAll={handleCloseAll}
           isCloseAllLoading={isClosingAll}
           onExport={handleExport}

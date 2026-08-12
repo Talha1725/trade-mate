@@ -79,10 +79,33 @@ function validateTpSl(input: {
   return null;
 }
 
-export function PlaceOrderDialog({ children }: { children: React.ReactNode }) {
-  const [open, setOpen] = React.useState(false);
+export type TradeModification = {
+  positionId: string;
+  symbol: string;
+  side: "Buy" | "Sell";
+  lots: number;
+  markPrice: number | null;
+  stopLoss: number | null;
+  takeProfit: number | null;
+  onSubmit: (input: { positionId: string; stopLoss: number | null; takeProfit: number | null }) => Promise<{ status: "PENDING" | "SENT" | "FAILED" | "SKIPPED" }>;
+};
+
+export function PlaceOrderDialog({
+  children,
+  modification,
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  children?: React.ReactNode;
+  modification?: TradeModification;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [internalOpen, setInternalOpen] = React.useState(false);
+  const open = controlledOpen ?? internalOpen;
   const [side, setSide] = React.useState<"Buy" | "Sell">("Buy");
-  const symbol = useSelectedSymbol() ?? "EURUSD";
+  const selectedSymbol = useSelectedSymbol() ?? "EURUSD";
+  const symbol = modification?.symbol ?? selectedSymbol;
   const setSymbol = useSetSelectedSymbol();
   const [loadSize, setLoadSize] = React.useState("0.01");
   const [stopLoss, setStopLoss] = React.useState("");
@@ -133,10 +156,32 @@ export function PlaceOrderDialog({ children }: { children: React.ReactNode }) {
     },
   });
 
+  React.useEffect(() => {
+    if (!open || !modification) return;
+
+    let isActive = true;
+    void terminalApi.getMarketQuotes([symbol], token ?? undefined).then((response) => {
+      if (!isActive || response.quotes.length === 0) return;
+
+      setLiveQuotes((current) => ({
+        ...current,
+        ...Object.fromEntries(response.quotes.map((quote) => [quote.symbol.toUpperCase(), quote])),
+      }));
+    }).catch(() => {
+      // The row's current mark price remains visible if the quote endpoint is unavailable.
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [modification, open, symbol, token]);
+
   const selectedQuote = liveQuotes[symbol.toUpperCase()] ?? null;
   const bidPrice = selectedQuote?.bid ?? selectedQuote?.price ?? null;
   const askPrice = selectedQuote?.ask ?? selectedQuote?.price ?? null;
-  const fillPrice = side === "Buy" ? askPrice : bidPrice;
+  const displayBidPrice = bidPrice ?? modification?.markPrice ?? null;
+  const displayAskPrice = askPrice ?? modification?.markPrice ?? null;
+  const fillPrice = side === "Buy" ? displayAskPrice : displayBidPrice;
   const lotsNum = Number(loadSize);
   const estimatedCost =
     fillPrice != null && Number.isFinite(lotsNum)
@@ -191,14 +236,31 @@ export function PlaceOrderDialog({ children }: { children: React.ReactNode }) {
 
   const handleOpenChange = React.useCallback(
     (nextOpen: boolean) => {
-      setOpen(nextOpen);
+      onOpenChange?.(nextOpen);
+      if (controlledOpen === undefined) setInternalOpen(nextOpen);
 
       if (nextOpen) {
+        if (modification) {
+          setSide(modification.side);
+          setLoadSize(String(modification.lots));
+          setStopLoss(modification.stopLoss == null ? "" : String(modification.stopLoss));
+          setTakeProfit(modification.takeProfit == null ? "" : String(modification.takeProfit));
+        }
         void loadAccountContext({ silent: true });
       }
     },
-    [loadAccountContext],
+    [controlledOpen, loadAccountContext, modification, onOpenChange],
   );
+
+  React.useEffect(() => {
+    if (open && modification) {
+      setSide(modification.side);
+      setLoadSize(String(modification.lots));
+      setStopLoss(modification.stopLoss == null ? "" : String(modification.stopLoss));
+      setTakeProfit(modification.takeProfit == null ? "" : String(modification.takeProfit));
+      void loadAccountContext({ silent: true });
+    }
+  }, [loadAccountContext, modification?.positionId, open]);
 
   const submitOrder = async () => {
     if (!token) {
@@ -221,6 +283,37 @@ export function PlaceOrderDialog({ children }: { children: React.ReactNode }) {
       (parsedTakeProfit != null && (!Number.isFinite(parsedTakeProfit) || parsedTakeProfit <= 0))
     ) {
       toast.error("Stop loss and take profit must be valid positive prices.");
+      return;
+    }
+
+    if (modification) {
+      const referencePrice = modification.markPrice ?? (side === "Buy" ? askPrice : bidPrice);
+      const tpSlError = validateTpSl({
+        side,
+        symbol,
+        referencePrice,
+        stopLoss: parsedStopLoss,
+        takeProfit: parsedTakeProfit,
+      });
+
+      if (tpSlError) {
+        toast.error(tpSlError);
+        return;
+      }
+
+      setIsSubmitting(true);
+      try {
+        await modification.onSubmit({
+          positionId: modification.positionId,
+          stopLoss: parsedStopLoss,
+          takeProfit: parsedTakeProfit,
+        });
+        handleOpenChange(false);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Unable to update trade.");
+      } finally {
+        setIsSubmitting(false);
+      }
       return;
     }
 
@@ -268,7 +361,7 @@ export function PlaceOrderDialog({ children }: { children: React.ReactNode }) {
       setStopLoss("");
       setTakeProfit("");
       window.dispatchEvent(new Event("trade-mate:positions-changed"));
-      setOpen(false);
+      handleOpenChange(false);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to place trade.";
       toast.error(message);
@@ -278,13 +371,13 @@ export function PlaceOrderDialog({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={React.isValidElement(children) ? children : <button>{children}</button>} />
+    <Dialog modal={!modification} open={open} onOpenChange={handleOpenChange}>
+      {children ? <DialogTrigger render={React.isValidElement(children) ? children : <button>{children}</button>} /> : null}
       <DialogContent
         className="w-full max-w-[450px] sm:max-w-[450px] max-h-[90vh] overflow-y-auto custom-scrollbar bg-[#0d0d0d] border border-white/20 p-5 pt-14 gap-0 shadow-2xl rounded-[16px] text-white"
         showCloseButton={false}
       >
-        <DialogTitle className="sr-only">Place Order</DialogTitle>
+        <DialogTitle className="sr-only">{modification ? "Modify Trade" : "Place Order"}</DialogTitle>
         <DialogClose
           render={
             <button className="absolute top-6 right-6 size-6 rounded-full bg-white hover:opacity-90 transition-opacity text-black flex items-center justify-center cursor-pointer">
@@ -296,9 +389,11 @@ export function PlaceOrderDialog({ children }: { children: React.ReactNode }) {
         {/* Header */}
         <div className="flex items-start justify-between mb-5">
           <div>
-            <h2 className="text-base font-bold text-white mb-1">Place Order</h2>
+            <h2 className="text-base font-bold text-white mb-1">{modification ? "Modify Trade" : "Place Order"}</h2>
             <p className="text-xs text-white/50 leading-relaxed pr-4">
-              Set up your trade with sizing, leverage and risk checks before execution.
+              {modification
+                ? "Review the trade details and update its stop loss or take profit."
+                : "Set up your trade with sizing, leverage and risk checks before execution."}
             </p>
           </div>
           <button className="p-2 rounded-lg border border-[#108961] card-green shrink-0 hover:opacity-90 transition-opacity">
@@ -339,7 +434,7 @@ export function PlaceOrderDialog({ children }: { children: React.ReactNode }) {
           >
             <div className="text-xs text-white/50 mb-1">Sell / Bid</div>
             <div className="text-sm font-semibold text-[#ff7a7a]">
-              {bidPrice != null ? formatMarketPrice(bidPrice, symbol) : "—"}
+              {displayBidPrice != null ? formatMarketPrice(displayBidPrice, symbol) : "—"}
             </div>
           </div>
           <div
@@ -350,7 +445,7 @@ export function PlaceOrderDialog({ children }: { children: React.ReactNode }) {
           >
             <div className="text-xs text-white/50 mb-1">Buy / Ask</div>
             <div className="text-sm font-semibold text-[#0CE9A0]">
-              {askPrice != null ? formatMarketPrice(askPrice, symbol) : "—"}
+              {displayAskPrice != null ? formatMarketPrice(displayAskPrice, symbol) : "—"}
             </div>
           </div>
         </div>
@@ -359,6 +454,7 @@ export function PlaceOrderDialog({ children }: { children: React.ReactNode }) {
         <div className="flex rounded-xl border border-white/20 gradient-btn-trade p-1 mb-5">
           <button
             onClick={() => setSide("Buy")}
+            disabled={Boolean(modification)}
             className={cn(
               "flex-1 rounded-lg py-2 cursor-pointer text-sm font-medium transition-colors",
               side === "Buy" ? "btn-green text-white" : "text-white/50 hover:text-white"
@@ -368,6 +464,7 @@ export function PlaceOrderDialog({ children }: { children: React.ReactNode }) {
           </button>
           <button
             onClick={() => setSide("Sell")}
+            disabled={Boolean(modification)}
             className={cn(
               "flex-1 rounded-lg py-2 text-sm cursor-pointer font-medium transition-colors",
               side === "Sell" ? "btn-red text-white" : "text-white/50 hover:text-white"
@@ -381,7 +478,13 @@ export function PlaceOrderDialog({ children }: { children: React.ReactNode }) {
           {/* Symbol Row */}
           <div>
             <label className="text-xs text-white/50 mb-1.5 block">Symbol</label>
-            <SymbolSelector className="w-full" contentClassName=" w-[330px] sm:w-[405px]" />
+            {modification ? (
+              <div className="flex h-9 w-full items-center rounded-lg border border-white/10 bg-[#141414] px-3 text-sm font-medium text-white/70">
+                {symbol}
+              </div>
+            ) : (
+              <SymbolSelector className="w-full" contentClassName=" w-[330px] sm:w-[405px]" />
+            )}
           </div>
 
           {/* Other 4 fields in 2x2 grid */}
@@ -394,6 +497,7 @@ export function PlaceOrderDialog({ children }: { children: React.ReactNode }) {
                   type="text"
                   value={loadSize}
                   onChange={(event) => setLoadSize(event.target.value)}
+                  disabled={Boolean(modification)}
                   className="w-full bg-transparent text-sm text-white outline-none"
                 />
               </div>
@@ -479,7 +583,9 @@ export function PlaceOrderDialog({ children }: { children: React.ReactNode }) {
               side === "Buy" ? "btn-green" : "btn-red"
             )}
           >
-            {isSubmitting ? "Placing..." : `${side} ${symbol}`}
+            {isSubmitting
+              ? modification ? "Saving..." : "Placing..."
+              : modification ? "Save Changes" : `${side} ${symbol}`}
           </button>
           {/* <button
             type="button"
