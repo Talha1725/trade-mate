@@ -304,14 +304,14 @@ export function TradeHistoryTable({
             }
             label={`${stats.winRate}% win rate`}
           />
-          <button
+          {/* <button
             type="button"
             onClick={handleExport}
             className="inline-flex cursor-pointer items-center gap-2.5 rounded-[10px] border border-white/5 bg-linear-to-b from-white/7 to-white/3 px-4 py-2 text-sm font-medium text-white/60 transition-colors hover:bg-white/10"
           >
             <PiDownloadFill className="size-4 text-white" />
             <span className="text-white">Export</span>
-          </button>
+          </button> */}
         </div>
       </div>
 
