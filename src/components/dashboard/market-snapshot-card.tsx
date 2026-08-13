@@ -8,6 +8,7 @@ import type {
   MarketSnapshotCardProps,
   MarketSnapshotStat,
 } from "@/types/market-snapshot";
+import { Loader2 } from "lucide-react";
 import Image from "next/image";
 
 function formatPercent(value: number) {
@@ -61,7 +62,7 @@ export function MarketSnapshotCard({ data, symbol, assetClass, className }: Mark
         )}
       >
         <div className="flex min-h-[240px] items-center justify-center rounded-[8px] border border-dashed border-white/10 bg-white/5 px-6 text-center">
-          <p className="text-sm text-white/50">No market snapshot available.</p>
+          <Loader2 className="size-8 animate-spin text-primary" />
         </div>
       </div>
     );
