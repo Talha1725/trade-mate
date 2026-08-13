@@ -180,14 +180,6 @@ export default function DashboardPage() {
   } = useAccountWishlist(accountNumber, tradingAssets);
   const [liveWatchlistItems, setLiveWatchlistItems] = React.useState<MarketWatchItem[]>([]);
 
-  React.useEffect(() => {
-    setLiveWatchlistItems((current) => {
-      const currentById = new Map(current.map((item) => [item.id, item]));
-
-      return accountWatchlistItems.map((item) => currentById.get(item.id) ?? item);
-    });
-  }, [accountWatchlistItems]);
-
   const selectedWatchlistItem = liveWatchlistItems.find((item) => item.id === selectedMarketId);
   const selectedFilterAsset = tradingAssets.find((asset) => asset.id === selectedMarketId);
   const chartSymbol =
@@ -215,6 +207,25 @@ export default function DashboardPage() {
       quotes.find((quote) => normalizedSymbols.has(normalizeTradingSymbol(quote.symbol))) ?? null
     );
   }, []);
+
+  React.useEffect(() => {
+    const quotes = Object.values(liveQuotes);
+    const nextItems = accountWatchlistItems.flatMap((item) => {
+      const quote = resolveQuoteForSymbol(quotes, item.symbol);
+
+      if (!quote) {
+        return [];
+      }
+
+      return [{
+        ...item,
+        price: quote.price,
+        changePercent: quote.changePercent ?? 0,
+      }];
+    });
+
+    setLiveWatchlistItems(nextItems);
+  }, [accountWatchlistItems, liveQuotes, resolveQuoteForSymbol]);
 
   React.useEffect(() => {
     if (!token || !chartSymbol) {
@@ -422,8 +433,8 @@ export default function DashboardPage() {
     [chartSymbol, openSymbols, supplementalQuoteSymbols],
   );
   const watchlistMarketSymbols = React.useMemo(
-    () => liveWatchlistItems.map((item) => item.symbol),
-    [liveWatchlistItems],
+    () => accountWatchlistItems.map((item) => item.symbol),
+    [accountWatchlistItems],
   );
 
   const resolvePortfolioAccount = React.useCallback(
@@ -550,6 +561,7 @@ export default function DashboardPage() {
             <MarketWatchCard
               items={liveWatchlistItems}
               selectedItemId={selectedMarketId}
+              isLoading={isWishlistLoading || (accountWatchlistItems.length > 0 && liveWatchlistItems.length < accountWatchlistItems.length)}
               onItemSelect={setSelectedMarketId}
               onWatchlistToggle={toggleWishlistAsset}
             />
