@@ -24,8 +24,10 @@ import { useLiveAccountSnapshotStore } from "@/lib/stores/live-account-snapshot-
 import { usePriceStream } from "@/hooks/use-price-stream";
 import type { PriceSocketPortfolioMessage } from "@/types/price";
 import type { PriceSocketQuote } from "@/types/price";
+import type { PortfolioPosition } from "@/types/dashboard";
 import { formatTradingSymbolLabel, getTradingSymbolAliases } from "@/lib/utils/market-symbol-icon";
 import { getSupplementalQuoteSymbol } from "@/lib/utils/instrument-spec";
+import { mergeLivePositions } from "@/lib/utils/live-portfolio";
 import { mapPortfolioPositionToPortfolioRow } from "@/lib/utils/trader-data";
 
 function formatCurrency(value?: number) {
@@ -100,7 +102,9 @@ function buildLiveAccountSummary(
 
   const winners = closedTrades.filter((trade) => toNumber(trade.pnl) > 0).length;
   const winRate = closedTrades.length > 0 ? (winners / closedTrades.length) * 100 : fallback?.winRate;
-  const floatingPnl = openPositions.reduce((sum, position) => sum + toNumber(position.floatingPnl), 0);
+  // Portfolio websocket updates can be partial (only positions touched by the
+  // latest quote). The account snapshot contains the complete floating P&L.
+  const floatingPnl = account ? toNumber(account.floatingPnl) : openPositions.reduce((sum, position) => sum + toNumber(position.floatingPnl), 0);
   const dailyPnl = closedTradesToday.length > 0
     ? closedTradesToday.reduce((sum, trade) => sum + toNumber(trade.pnl), 0)
     : fallback?.dailyPnl ?? 0;
@@ -281,6 +285,7 @@ export function Sidebar({ className }: { className?: string }) {
       }, 0);
   }, [liveQuotePrices, liveQuotes, sidebarPositions]);
   const displayedOpenPnl = liveOpenPnl ?? activeSummary?.floatingPnl;
+  const livePositionsByAccountIdRef = React.useRef<Record<string, PortfolioPosition[]>>({});
   const [displayedOpenOrdersCount, setDisplayedOpenOrdersCount] = React.useState(cachedOpenOrdersCount);
   const lastStableOpenOrdersCountRef = React.useRef(cachedOpenOrdersCount);
 
@@ -299,6 +304,7 @@ export function Sidebar({ className }: { className?: string }) {
     }
 
     if (openPositions?.positions && !isOpenPositionsFetching) {
+      livePositionsByAccountIdRef.current[selectedAccountId] = openPositions.positions;
       const nextCount = openPositions.positions.filter((position) => position.status === "OPEN").length;
       lastStableOpenOrdersCountRef.current = nextCount;
       setDisplayedOpenOrdersCount(nextCount);
@@ -376,10 +382,13 @@ export function Sidebar({ className }: { className?: string }) {
         return;
       }
 
-      const nextCount = payload.positions.filter(
-        (position) => position.accountId === selectedAccountId && position.status === "OPEN",
-      ).length;
-
+      const accountUpdates = payload.positions.filter((position) => position.accountId === selectedAccountId);
+      const currentPositions = livePositionsByAccountIdRef.current[selectedAccountId] ?? sidebarPositions ?? [];
+      const nextPositions = mergeLivePositions(currentPositions, accountUpdates);
+      livePositionsByAccountIdRef.current[selectedAccountId] = nextPositions;
+      const nextCount = nextPositions.filter((position) => position.status === "OPEN").length;
+      lastStableOpenOrdersCountRef.current = nextCount;
+      setDisplayedOpenOrdersCount(nextCount);
       setOpenOrderCount(selectedAccountId, nextCount);
 
       const currentSummary = useLiveAccountSnapshotStore.getState().summariesByAccountId[selectedAccountId] ?? accountSummary ?? null;

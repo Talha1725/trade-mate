@@ -30,6 +30,7 @@ import { useSyncedTradingAssets } from "@/hooks/use-synced-trading-assets";
 import { useLiveAccountSnapshotStore } from "@/lib/stores/live-account-snapshot-store";
 import { downloadTextFile } from "@/lib/utils/download";
 import { buildAccountMetricsSummaryFromAccount } from "@/lib/utils/live-account-summary";
+import { mergeLivePositions, mergeLiveTrades } from "@/lib/utils/live-portfolio";
 import {
   applyLiveQuoteToOrderOverview,
   buildOrderDepthChart,
@@ -245,8 +246,8 @@ export default function OrdersPage() {
         return {
           ...current,
           account: nextAccount ?? current.account,
-          positions: nextPositions,
-          trades: nextTrades,
+          positions: mergeLivePositions(current.positions, nextPositions),
+          trades: mergeLiveTrades(current.trades, nextTrades),
         };
       });
     },
