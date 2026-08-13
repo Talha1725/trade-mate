@@ -214,6 +214,7 @@ const ZERO_OVERVIEW = { summary: undefined, chart: { defaultTimeframe: "4H" as c
 export function buildPortfolioMetricCards(
   account: Pick<PortfolioAccount, "balance" | "equity" | "floatingPnl" | "marginUsed" | "accountSize" | "fundingType"> | null,
   overview: Pick<PortfolioOverviewResponse, "summary" | "chart"> | null,
+  liveFloatingPnl?: number,
 ): PortfolioMetricCard[] {
   const acc = account ?? ZERO_ACCOUNT;
   const ov = overview ?? ZERO_OVERVIEW;
@@ -223,13 +224,14 @@ export function buildPortfolioMetricCards(
   const marginUsagePercent = Number(acc.marginUsed) > 0 ? (Number(acc.marginUsed) / accountSize) * 100 : 0;
   const freeMarginPercent = accountSize > 0 ? (availableMargin / accountSize) * 100 : 0;
   const fallbackProfitTargetPercent = getProfitTargetPercent(acc.fundingType);
+  const displayedFloatingPnl = liveFloatingPnl ?? Number(acc.floatingPnl);
   const riskLabel = getRiskLabel(marginUsagePercent);
   const summary =
     ov.summary ?? {
       accountSize,
       walletBalance,
       equity: Number(acc.equity),
-      floatingPnl: Number(acc.floatingPnl),
+      floatingPnl: displayedFloatingPnl,
       availableMargin: Math.max(0, Number(acc.equity) - Number(acc.marginUsed)),
       marginUsagePercent: Number(marginUsagePercent.toFixed(1)),
       openPositionsCount: 0,
@@ -274,16 +276,16 @@ export function buildPortfolioMetricCards(
       id: "pnl",
       variant: "icon-stats",
       title: "P&L",
-      value: formatSignedCurrency(Number(acc.floatingPnl)),
+      value: formatSignedCurrency(displayedFloatingPnl),
       subtitle: "Across open positions",
-      subtitleTone: Number(acc.floatingPnl) >= 0 ? "positive" : "negative",
+      subtitleTone: displayedFloatingPnl >= 0 ? "positive" : "negative",
       iconSrc: "/images/portfolio/graph.svg",
-      iconTone: Number(acc.floatingPnl) >= 0 ? "green" : "red",
+      iconTone: displayedFloatingPnl >= 0 ? "green" : "red",
       subStats: [
         { label: "Winning", value: `${summary.winningPositionsCount} positions`, tone: "positive" },
         { label: "Losing", value: `${summary.losingPositionsCount} positions`, tone: "negative" },
       ],
-      valueTone: Number(acc.floatingPnl) >= 0 ? "positive" : "negative",
+      valueTone: displayedFloatingPnl >= 0 ? "positive" : "negative",
     },
     {
       id: "available-margin",

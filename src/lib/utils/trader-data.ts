@@ -13,7 +13,7 @@ import type {
   SymbolBreakdownDatum,
 } from "@/types/dashboard";
 import type { Position, Trade } from "@/types/trade";
-import { resolveMarketWatchIcon } from "@/lib/utils/market-symbol-icon";
+import { getTradingSymbolAliases, resolveMarketWatchIcon } from "@/lib/utils/market-symbol-icon";
 import type { PortfolioOpenPositionRow } from "@/types/portfolio-open-positions";
 import type { ActiveOrderRow } from "@/types/active-orders";
 import type { RecentTradeRow } from "@/types/orders-recent-trades";
@@ -24,6 +24,8 @@ import {
   getInstrumentSpec,
   type QuotePriceMap,
 } from "@/lib/utils/instrument-spec";
+
+export type LiveQuoteMap = Record<string, PriceSocketQuote>;
 
 function toNumber(value: string | number | null | undefined) {
   if (value == null) {
@@ -52,6 +54,25 @@ function getExecutablePrice(
 
   const executablePrice = position.direction === "BUY" ? liveQuote.bid : liveQuote.ask;
   return toNumber(executablePrice ?? liveQuote.price);
+}
+
+function resolveLiveQuote(symbol: string, liveQuotes: LiveQuoteMap) {
+  const aliases = new Set(getTradingSymbolAliases(symbol));
+
+  return Object.values(liveQuotes).find((quote) => aliases.has(quote.symbol.toUpperCase())) ?? null;
+}
+
+export function calculateLiveFloatingPnl(
+  positions: PortfolioPosition[],
+  liveQuotes: LiveQuoteMap = {},
+  quotePrices: QuotePriceMap = {},
+) {
+  return positions
+    .filter((position) => position.status === "OPEN")
+    .reduce((total, position) => {
+      const liveQuote = resolveLiveQuote(position.symbol, liveQuotes);
+      return total + mapPortfolioPositionToPortfolioRow(position, liveQuote, null, quotePrices).pnl;
+    }, 0);
 }
 
 export function formatDateLabel(dateValue: string | null | undefined) {
@@ -153,6 +174,7 @@ export function mapPortfolioPositionToPortfolioRow(
 export function mapPortfolioPositionToActiveOrder(
   position: PortfolioPosition,
   liveQuote?: PriceSocketQuote | null,
+  quotePrices: QuotePriceMap = {},
 ): ActiveOrderRow {
   const entryPrice = toNumber(position.entryPrice);
   const size = toNumber(position.lots);
@@ -160,7 +182,7 @@ export function mapPortfolioPositionToActiveOrder(
   const markPrice = getExecutablePrice(position, liveQuote);
   const priceDelta = (markPrice - entryPrice) * directionMultiplier;
   const calculatedPnl = liveQuote
-    ? calculateNotionalUsd(position.symbol, size, priceDelta)
+    ? calculateNotionalUsd(position.symbol, size, priceDelta, quotePrices)
     : null;
 
   return {
@@ -308,12 +330,19 @@ export function buildSymbolBreakdown(
   }));
 }
 
-export function buildStatCards(account: PortfolioAccount, positions: PortfolioPosition[], trades: PortfolioTrade[]): StatCardDatum[] {
+export function buildStatCards(
+  account: PortfolioAccount,
+  positions: PortfolioPosition[],
+  trades: PortfolioTrade[],
+  quotePrices: QuotePriceMap = {},
+  liveQuotes: LiveQuoteMap = {},
+): StatCardDatum[] {
   const closedTrades = trades.filter((trade) => trade.status === "CLOSED");
   const winners = closedTrades.filter((trade) => toNumber(trade.pnl) > 0).length;
   const winRate = closedTrades.length > 0 ? Math.round((winners / closedTrades.length) * 100) : 0;
 
   const freeCash = getFreeCash(account);
+  const liveFloatingPnl = calculateLiveFloatingPnl(positions, liveQuotes, quotePrices);
 
   return [
     {
@@ -328,8 +357,8 @@ export function buildStatCards(account: PortfolioAccount, positions: PortfolioPo
     },
     {
       title: "Today's P&L",
-      value: formatMoney(positions.reduce((sum, position) => sum + toNumber(position.floatingPnl), 0)),
-      description: `${formatMoney(toNumber(account.floatingPnl))} account floating`,
+      value: formatMoney(liveFloatingPnl),
+      description: `${formatMoney(liveFloatingPnl)} account floating`,
       tone: "success",
     },
     {
@@ -344,6 +373,7 @@ export function buildDashboardData(
   snapshot: UserPortfolioResponse,
   ledger?: AccountLedgerResponse,
   quotePrices: QuotePriceMap = {},
+  liveQuotes: LiveQuoteMap = {},
 ) {
   const account = ledger?.account ?? snapshot.account;
   const positions = ledger?.positions ?? snapshot.positions;
@@ -353,7 +383,7 @@ export function buildDashboardData(
     account,
     positions,
     trades,
-    statCards: buildStatCards(account, positions, trades),
+    statCards: buildStatCards(account, positions, trades, quotePrices, liveQuotes),
     equityCurve: buildEquityCurve(account, trades),
     breakdown: buildSymbolBreakdown(positions, quotePrices),
     openPositionsSummary: buildOpenPositionSummary(positions),

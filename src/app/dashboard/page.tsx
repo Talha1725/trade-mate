@@ -145,7 +145,7 @@ export default function DashboardPage() {
     };
   }, [resolvedAccountId, token]);
 
-  const dashboardData = snapshot ? buildDashboardData(snapshot, ledger ?? undefined, liveQuotePrices) : null;
+  const dashboardData = snapshot ? buildDashboardData(snapshot, ledger ?? undefined, liveQuotePrices, liveQuotes) : null;
   const liveSymbol = dashboardData?.positions[0]?.symbol;
   const openPortfolioPositions = React.useMemo(
     () => dashboardData?.positions.filter((position) => position.status === "OPEN") ?? [],

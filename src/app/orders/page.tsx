@@ -46,6 +46,7 @@ import {
 import type { OrderOverviewResponse } from "@/types/orders";
 import type { PriceSocketPortfolioMessage, PriceSocketQuote } from "@/types/price";
 import type { TradingFilterBarAsset } from "@/types/trading-filter-bar";
+import { getTradingSymbolAliases } from "@/lib/utils/market-symbol-icon";
 
 function AssetSelectLabel({
   symbol,
@@ -141,7 +142,14 @@ export default function OrdersPage() {
   const closeAllSettlingRef = React.useRef(false);
   const closeAllSettlingTimeoutRef = React.useRef<number | null>(null);
   const streamAccountId = overview?.account.id ?? resolvedAccountId;
-  const liveQuoteForSymbol = liveQuotes[selectedSymbol.toUpperCase()] ?? null;
+  const liveQuoteForSymbol = React.useMemo(() => {
+    const aliases = new Set(getTradingSymbolAliases(selectedSymbol));
+    return Object.values(liveQuotes).find((quote) => aliases.has(quote.symbol.toUpperCase())) ?? null;
+  }, [liveQuotes, selectedSymbol]);
+  const liveQuotePrices = React.useMemo(
+    () => Object.fromEntries(Object.values(liveQuotes).map((quote) => [quote.symbol.toUpperCase(), quote.price])),
+    [liveQuotes],
+  );
   const openPositionSymbolsKey = (overview?.positions ?? [])
     .filter((position) => position.status === "OPEN")
     .map((position) => position.symbol.toUpperCase())
@@ -268,9 +276,15 @@ export default function OrdersPage() {
   const activeOrders = React.useMemo(
     () =>
       liveOverview?.positions.map((position) =>
-        mapPortfolioPositionToActiveOrder(position, liveQuotes[position.symbol.toUpperCase()] ?? null),
+        mapPortfolioPositionToActiveOrder(
+          position,
+          Object.values(liveQuotes).find((quote) =>
+            getTradingSymbolAliases(position.symbol).includes(quote.symbol.toUpperCase()),
+          ) ?? null,
+          liveQuotePrices,
+        ),
       ) ?? [],
-    [liveOverview?.positions, liveQuotes],
+    [liveOverview?.positions, liveQuotes, liveQuotePrices],
   );
   const recentTrades = React.useMemo(
     () =>

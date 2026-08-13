@@ -4,6 +4,7 @@ import * as React from "react";
 import { unstable_batchedUpdates } from "react-dom";
 
 import { createLatestValueBuffer, getPriceSocketUrl } from "@/lib/utils/price-stream";
+import { useLivePriceStore } from "@/lib/stores/live-price-store";
 import type {
   PriceSocketPortfolioMessage,
   PriceSocketQuote,
@@ -59,6 +60,7 @@ export function usePriceStream({
     const quoteBuffer = createLatestValueBuffer<PriceSocketQuote>(
       (quote) => quote.symbol.toUpperCase(),
       (quotes) => {
+        useLivePriceStore.getState().setQuotes(quotes);
         unstable_batchedUpdates(() => {
           callbacksRef.current.onQuotes?.(quotes);
         });
