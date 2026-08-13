@@ -3,8 +3,13 @@
 import * as React from "react";
 import { unstable_batchedUpdates } from "react-dom";
 
-import { getPriceSocketUrl } from "@/lib/utils/price-stream";
-import type { PriceSocketQuote, PriceSocketServerMessage, PriceStreamOptions } from "@/types/price";
+import { createLatestValueBuffer, getPriceSocketUrl } from "@/lib/utils/price-stream";
+import type {
+  PriceSocketPortfolioMessage,
+  PriceSocketQuote,
+  PriceSocketServerMessage,
+  PriceStreamOptions,
+} from "@/types/price";
 
 function normalize(values?: string[]) {
   return Array.from(new Set((values ?? []).map((value) => value.trim()).filter((value) => value.length > 0)));
@@ -51,6 +56,27 @@ export function usePriceStream({
     let intentionalClose = false;
     let closeAfterOpen = false;
     const latestQuoteTimestamps = new Map<string, number>();
+    const quoteBuffer = createLatestValueBuffer<PriceSocketQuote>(
+      (quote) => quote.symbol.toUpperCase(),
+      (quotes) => {
+        unstable_batchedUpdates(() => {
+          callbacksRef.current.onQuotes?.(quotes);
+        });
+      },
+    );
+    const portfolioBuffer = createLatestValueBuffer<PriceSocketPortfolioMessage>(
+      () => "portfolio",
+      (messages) => {
+        const latestPortfolio = messages[messages.length - 1];
+        if (!latestPortfolio) {
+          return;
+        }
+
+        unstable_batchedUpdates(() => {
+          callbacksRef.current.onPortfolio?.(latestPortfolio);
+        });
+      },
+    );
 
     const onlyLatestQuotes = (quotes: PriceSocketQuote[]) => {
       const latestQuotes: PriceSocketQuote[] = [];
@@ -120,14 +146,12 @@ export function usePriceStream({
           unstable_batchedUpdates(() => {
             if (payload.type === "snapshot" || payload.type === "update") {
               const latestQuotes = onlyLatestQuotes(payload.quotes);
-              if (latestQuotes.length > 0) {
-                callbacksRef.current.onQuotes?.(latestQuotes);
-              }
+              latestQuotes.forEach((quote) => quoteBuffer.push(quote));
               return;
             }
 
             if (payload.type === "portfolio") {
-              callbacksRef.current.onPortfolio?.(payload);
+              portfolioBuffer.push(payload);
               return;
             }
 
@@ -149,6 +173,9 @@ export function usePriceStream({
       };
 
       socket.onclose = () => {
+        quoteBuffer.flush();
+        portfolioBuffer.flush();
+
         if (isDisposed || intentionalClose) {
           return;
         }
@@ -164,6 +191,8 @@ export function usePriceStream({
     return () => {
       isDisposed = true;
       intentionalClose = true;
+      quoteBuffer.dispose();
+      portfolioBuffer.dispose();
 
       if (reconnectTimer) {
         clearTimeout(reconnectTimer);
