@@ -135,6 +135,7 @@ function mergeSidebarSummary(
 
   const baseSummary = stableSummary ?? liveSummary!;
   const livePnl = liveSummary?.floatingPnl ?? baseSummary.floatingPnl;
+  const realizedDailyPnl = stableSummary?.dailyPnl ?? liveSummary?.dailyPnl ?? 0;
 
   return {
     ...baseSummary,
@@ -144,7 +145,9 @@ function mergeSidebarSummary(
     balance: stableSummary?.balance ?? liveSummary?.balance ?? 0,
     equity: stableSummary?.equity ?? liveSummary?.equity ?? 0,
     floatingPnl: livePnl,
-    dailyPnl: stableSummary?.dailyPnl ?? liveSummary?.dailyPnl ?? 0,
+    // Daily P&L includes today's realized P&L plus the current floating P&L
+    // from open positions.
+    dailyPnl: realizedDailyPnl + livePnl,
     winRate: stableSummary?.winRate ?? liveSummary?.winRate,
     bestAsset: liveSummary?.bestAsset ?? stableSummary?.bestAsset ?? null,
   };
