@@ -386,8 +386,13 @@ export function Sidebar({ className }: { className?: string }) {
       }
 
       const accountUpdates = payload.positions.filter((position) => position.accountId === selectedAccountId);
+      const closedIds = new Set(
+        payload.trades
+          .filter((trade) => trade.accountId === selectedAccountId && trade.status === "CLOSED" && trade.positionId)
+          .map((trade) => trade.positionId as string),
+      );
       const currentPositions = livePositionsByAccountIdRef.current[selectedAccountId] ?? sidebarPositions ?? [];
-      const nextPositions = mergeLivePositions(currentPositions, accountUpdates);
+      const nextPositions = mergeLivePositions(currentPositions, accountUpdates, { closedIds });
       livePositionsByAccountIdRef.current[selectedAccountId] = nextPositions;
       const nextCount = nextPositions.filter((position) => position.status === "OPEN").length;
       lastStableOpenOrdersCountRef.current = nextCount;

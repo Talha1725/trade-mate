@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
@@ -92,6 +93,7 @@ function getPreferredAsset(
 }
 
 export default function OrdersPage() {
+  const queryClient = useQueryClient();
   const token = useAuthStore((state) => state.session?.token ?? null);
   const selectedAccountId = useSelectedAccountStore((state) => state.selectedAccountId);
   const hasHydrated = useSelectedAccountStore((state) => state.hasHydrated);
@@ -324,6 +326,13 @@ export default function OrdersPage() {
                   };
                 });
 
+                queryClient.setQueryData<{ positions?: Array<{ id: string; status?: string }> }>(
+                  ["positions", result.account.id],
+                  (current) => current
+                    ? { ...current, positions: current.positions?.filter((position) => position.id !== result.position.id) }
+                    : current,
+                );
+
                 const currentSummary =
                   useLiveAccountSnapshotStore.getState().summariesByAccountId[result.account.id] ?? null;
                 useLiveAccountSnapshotStore.getState().setAccountSummary(
@@ -337,7 +346,7 @@ export default function OrdersPage() {
                 toast.error(error instanceof Error ? error.message : "Unable to close order.");
             }
         },
-        [refreshOverview, token],
+        [queryClient, refreshOverview, token],
     );
 
   const handleModifyProtection = React.useCallback(
