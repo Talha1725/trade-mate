@@ -41,20 +41,10 @@ import { SIDEBAR_ICONS } from "@/lib/mock-data/sidebar-icons";
 import { cn } from "@/lib/utils";
 import type { TradeHistoryTableProps } from "@/types/trade-history";
 import type { Trade } from "@/types/trade";
+import { formatNewYorkDateTime } from "@/lib/utils/date-time";
 
 function formatHistoryDateTime(value: string | null | undefined) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-
-  return date.toLocaleString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "UTC",
-  });
+  return formatNewYorkDateTime(value);
 }
 
 function formatTradeDateTimes(trade: Trade) {
@@ -134,17 +124,17 @@ function TradeHistoryRowCells({ trade }: { trade: Trade }) {
 const tradeHistoryColumns: ColumnDef<Trade>[] = [
   {
     accessorKey: "time",
-    header: ({ column }) => <SortableColumnHeader column={column} label="Open Date/Day" />,
+    header: ({ column }) => <SortableColumnHeader column={column} label="Open Date/Day" className="min-w-[260px] justify-start text-left" />,
     cell: ({ row }) => {
       const dates = formatTradeDateTimes(row.original);
-      return <span className="whitespace-nowrap">{dates.opened}</span>;
+      return <span className="inline-block min-w-[260px] whitespace-nowrap text-left">{dates.opened}</span>;
     },
   },
   {
     id: "closedAt",
     accessorFn: (trade) => trade.closedAt ?? "",
-    header: ({ column }) => <SortableColumnHeader column={column} label="Close Date/Day" />,
-    cell: ({ row }) => <span className="whitespace-nowrap">{formatTradeDateTimes(row.original).closed}</span>,
+    header: ({ column }) => <SortableColumnHeader column={column} label="Close Date/Day" className="min-w-[260px] justify-start text-left" />,
+    cell: ({ row }) => <span className="inline-block min-w-[260px] whitespace-nowrap text-left">{formatTradeDateTimes(row.original).closed}</span>,
   },
   {
     accessorKey: "symbol",
@@ -331,8 +321,8 @@ export function TradeHistoryTable({
           <ResponsiveTableScroll>
             <Table className="min-w-[1500px] table-fixed whitespace-nowrap">
               <colgroup>
-                <col className="w-[180px]" />
-                <col className="w-[180px]" />
+                <col className="w-[200px]" />
+                <col className="w-[200px]" />
                 <col className="w-[140px]" />
                 <col className="w-[100px]" />
                 <col className="w-[100px]" />

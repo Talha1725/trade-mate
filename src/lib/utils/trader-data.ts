@@ -24,6 +24,7 @@ import {
   getInstrumentSpec,
   type QuotePriceMap,
 } from "@/lib/utils/instrument-spec";
+import { formatNewYorkDate, formatNewYorkDateTime } from "@/lib/utils/date-time";
 
 export type LiveQuoteMap = Record<string, PriceSocketQuote>;
 
@@ -76,44 +77,11 @@ export function calculateLiveFloatingPnl(
 }
 
 export function formatDateLabel(dateValue: string | null | undefined) {
-  if (!dateValue) {
-    return "-";
-  }
-
-  const date = new Date(dateValue);
-
-  if (Number.isNaN(date.getTime())) {
-    return "-";
-  }
-
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
-    timeZoneName: "short",
-  });
+  return formatNewYorkDate(dateValue);
 }
 
 export function formatDateTimeLabel(dateValue: string | null | undefined) {
-  if (!dateValue) {
-    return "-";
-  }
-
-  const date = new Date(dateValue);
-
-  if (Number.isNaN(date.getTime())) {
-    return "-";
-  }
-
-  return date.toLocaleString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "UTC",
-    timeZoneName: "short",
-  });
+  return formatNewYorkDateTime(dateValue);
 }
 
 export function mapPortfolioPositionToPosition(position: PortfolioPosition): Position {
