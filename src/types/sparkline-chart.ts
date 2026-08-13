@@ -10,4 +10,6 @@ export type SparklineChartProps = {
   showEndDot?: boolean;
   palette?: MiniAreaLineChartPalette;
   fromZero?: boolean;
+  minValue?: number;
+  maxValue?: number;
 };

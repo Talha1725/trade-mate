@@ -24,9 +24,9 @@ import {
     buildPortfolioExposureItems,
     buildPortfolioMetricCards,
 } from "@/lib/utils/portfolio";
-import { mapPortfolioPositionToPortfolioRow } from "@/lib/utils/trader-data";
+import { calculateLiveFloatingPnl, mapPortfolioPositionToPortfolioRow } from "@/lib/utils/trader-data";
 import { getSupplementalQuoteSymbol } from "@/lib/utils/instrument-spec";
-import { mergeStablePositions } from "@/lib/utils/stable-positions";
+import { mergeLivePositions } from "@/lib/utils/live-portfolio";
 import { getTradingSymbolAliases, normalizeTradingSymbol } from "@/lib/utils/market-symbol-icon";
 import { useLiveAccountSnapshotStore } from "@/lib/stores/live-account-snapshot-store";
 import { downloadTextFile } from "@/lib/utils/download";
@@ -34,7 +34,8 @@ import { buildAccountMetricsSummaryFromAccount } from "@/lib/utils/live-account-
 import type { UserPortfolioResponse } from "@/types/dashboard";
 import type { PortfolioOverviewResponse } from "@/types/portfolio-overview";
 import { usePriceStream } from "@/hooks/use-price-stream";
-import type { PriceSocketPortfolioMessage, PriceSocketQuote } from "@/types";
+import type { PriceSocketPortfolioMessage } from "@/types";
+import { useLivePriceStore } from "@/lib/stores/live-price-store";
 
 export default function PortfolioPage() {
     const [snapshot, setSnapshot] = React.useState<UserPortfolioResponse | null>(null);
@@ -48,8 +49,7 @@ export default function PortfolioPage() {
     const { data: tradingAssets = [] } = useSyncedTradingAssets();
     const positionOrderRef = React.useRef(new Map<string, number>());
     const positionOrderCounterRef = React.useRef(0);
-    const positionMissingCountsRef = React.useRef(new Map<string, number>());
-    const [liveQuotes, setLiveQuotes] = React.useState<Record<string, PriceSocketQuote>>({});
+    const liveQuotes = useLivePriceStore((state) => state.quotes);
     const liveQuotePrices = React.useMemo(
         () =>
             Object.fromEntries(
@@ -104,10 +104,8 @@ export default function PortfolioPage() {
     React.useEffect(() => {
         setSnapshot(null);
         setOverview(null);
-        setLiveQuotes({});
         positionOrderRef.current.clear();
         positionOrderCounterRef.current = 0;
-        positionMissingCountsRef.current.clear();
     }, [resolvedAccountId, token]);
 
     const normalizeOpenPositions = React.useCallback(
@@ -225,8 +223,12 @@ export default function PortfolioPage() {
     }, [overview, snapshot?.positions]);
 
     const metricCards = React.useMemo(
-        () => buildPortfolioMetricCards(snapshot?.account ?? null, liveMetricOverview),
-        [liveMetricOverview, snapshot?.account],
+        () => buildPortfolioMetricCards(
+            snapshot?.account ?? null,
+            liveMetricOverview,
+            calculateLiveFloatingPnl(snapshot?.positions ?? [], liveQuotes, liveQuotePrices),
+        ),
+        [liveMetricOverview, liveQuotePrices, liveQuotes, snapshot?.account, snapshot?.positions],
     );
 
     const allocationItems = React.useMemo(() => {
@@ -288,19 +290,6 @@ export default function PortfolioPage() {
         enabled: !!token && !!accountId,
         symbols: subscriptionSymbols,
         accountIds: accountId ? [accountId] : [],
-        onQuotes: (quotes) => {
-            setLiveQuotes((current) => {
-                const next = { ...current };
-
-                for (const quote of quotes) {
-                    for (const alias of getTradingSymbolAliases(quote.symbol)) {
-                        next[alias] = quote;
-                    }
-                }
-
-                return next;
-            });
-        },
         onPortfolio: (payload: PriceSocketPortfolioMessage) => {
             const account = resolvePortfolioAccount(payload);
 
@@ -326,10 +315,9 @@ export default function PortfolioPage() {
                     ...current,
                     account,
                     positions: normalizeOpenPositions(
-                        mergeStablePositions(
+                        mergeLivePositions(
                             current.positions,
                             payload.positions,
-                            positionMissingCountsRef.current,
                             { closedIds },
                         ),
                     ),

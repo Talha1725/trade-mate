@@ -10,6 +10,7 @@ import { SortableColumnHeader } from "@/components/sortable-column-header";
 import { AssetIcon } from "@/components/shared/asset-icon";
 import { formatTradingPrice } from "@/components/shared/trading-table-cells";
 import { cn } from "@/lib/utils";
+import { formatNewYorkDateTime } from "@/lib/utils/date-time";
 import type {
   PortfolioOpenPositionRisk,
   PortfolioOpenPositionRow,
@@ -46,17 +47,7 @@ function formatSignedPercent(value: number) {
 }
 
 function formatOpenDate(value: string | null | undefined) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "UTC",
-  });
+  return formatNewYorkDateTime(value);
 }
 
 function SymbolCell({ icon, symbol }: { icon: MarketWatchIcon; symbol: string }) {
@@ -152,8 +143,8 @@ export function PortfolioOpenPositionsTable({
       },
       {
         accessorKey: "openedAt",
-        header: ({ column }) => <SortableColumnHeader column={column} label="Open Date/Day" className="min-w-[230px] justify-start text-left" />,
-        cell: ({ row }) => <span className="inline-block min-w-[230px] whitespace-nowrap text-left text-sm font-medium text-white/60">{formatOpenDate(row.original.openedAt)}</span>,
+        header: ({ column }) => <SortableColumnHeader column={column} label="Open Date/Day" className="min-w-[260px] justify-start text-left" />,
+        cell: ({ row }) => <span className="inline-block min-w-[260px] whitespace-nowrap text-left text-sm font-medium text-white/60">{formatOpenDate(row.original.openedAt)}</span>,
       },
       {
         accessorKey: "side",
@@ -273,7 +264,7 @@ export function PortfolioOpenPositionsTable({
       <Table className="min-w-[1500px] table-fixed">
         <colgroup>
           <col className="w-[130px]" />
-          <col className="w-[230px]" />
+          <col className="w-[200px]" />
           <col className="w-[110px]" />
           <col className="w-[100px]" />
           <col className="w-[130px]" />

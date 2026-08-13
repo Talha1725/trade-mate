@@ -5,6 +5,8 @@ export type MiniAreaLineChartProps = {
   className?: string;
   strokeId?: string;
   fromZero?: boolean;
+  minValue?: number;
+  maxValue?: number;
   palette?: MiniAreaLineChartPalette;
   showEndDot?: boolean;
 };

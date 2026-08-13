@@ -90,10 +90,10 @@ export function PortfolioAllocationCard({
       <div className="relative z-10 mt-4 flex flex-1 flex-col gap-5 min-[1700px]:flex-row lg:items-center">
         <ChartContainer
           config={chartConfig}
-          className="mx-auto aspect-square h-[233px] w-[233px] shrink-0 rotate-160 lg:mx-0"
+          className="mx-auto aspect-square h-[233px] min-h-[233px] w-[233px] min-w-[233px] shrink-0 rotate-160 lg:mx-0"
           initialDimension={{ width: 233, height: 233 }}
         >
-          <PieChart>
+          <PieChart width={233} height={233}>
             <Pie
               data={items}
               dataKey="value"
@@ -103,6 +103,7 @@ export function PortfolioAllocationCard({
               paddingAngle={0}
               strokeWidth={0}
               cornerRadius={0}
+              isAnimationActive={false}
             >
               {items.map((item) => (
                 <Cell key={item.id} fill={item.color} />

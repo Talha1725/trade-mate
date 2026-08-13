@@ -178,18 +178,18 @@ export function TradingFilterBar({
     >
 
 
-      <div className="flex min-w-[200px] shrink-0 items-center gap-2 min-[1500px]:w-[240px] min-[1500px]:min-w-[240px]">
+      <div className="flex min-w-[200px] shrink-0 items-center gap-3 min-[1500px]:w-[240px] min-[1500px]:min-w-[240px]">
         <span className="text-base font-medium tabular-nums text-white md:text-lg">
           {formatTradingPrice(quote.price, selectedAssetSymbol, selectedAssetClass)}
         </span>
-        <span
+        <p
           className={cn(
-            "text-xs font-normal tabular-nums md:text-sm",
+            "text-xs font-normal tabular-nums md:text-sm mt-0.5",
             isPositive ? "text-primary" : "text-destructive",
           )}
         >
-          {formatSignedChange(quote.change, selectedAssetSymbol)} ({formatPercent(quote.changePercent)})
-        </span>
+          {formatSignedChange(quote.change, selectedAssetSymbol)} <span className="ml-1">({formatPercent(quote.changePercent)})</span> 
+        </p>
       </div>
 
       <div className="flex items-center gap-0.5">

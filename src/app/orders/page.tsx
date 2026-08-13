@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
@@ -30,6 +31,7 @@ import { useSyncedTradingAssets } from "@/hooks/use-synced-trading-assets";
 import { useLiveAccountSnapshotStore } from "@/lib/stores/live-account-snapshot-store";
 import { downloadTextFile } from "@/lib/utils/download";
 import { buildAccountMetricsSummaryFromAccount } from "@/lib/utils/live-account-summary";
+import { mergeLivePositions, mergeLiveTrades } from "@/lib/utils/live-portfolio";
 import {
   applyLiveQuoteToOrderOverview,
   buildOrderDepthChart,
@@ -44,6 +46,7 @@ import {
 import type { OrderOverviewResponse } from "@/types/orders";
 import type { PriceSocketPortfolioMessage, PriceSocketQuote } from "@/types/price";
 import type { TradingFilterBarAsset } from "@/types/trading-filter-bar";
+import { getTradingSymbolAliases } from "@/lib/utils/market-symbol-icon";
 
 function AssetSelectLabel({
   symbol,
@@ -91,6 +94,7 @@ function getPreferredAsset(
 }
 
 export default function OrdersPage() {
+  const queryClient = useQueryClient();
   const token = useAuthStore((state) => state.session?.token ?? null);
   const selectedAccountId = useSelectedAccountStore((state) => state.selectedAccountId);
   const hasHydrated = useSelectedAccountStore((state) => state.hasHydrated);
@@ -138,7 +142,14 @@ export default function OrdersPage() {
   const closeAllSettlingRef = React.useRef(false);
   const closeAllSettlingTimeoutRef = React.useRef<number | null>(null);
   const streamAccountId = overview?.account.id ?? resolvedAccountId;
-  const liveQuoteForSymbol = liveQuotes[selectedSymbol.toUpperCase()] ?? null;
+  const liveQuoteForSymbol = React.useMemo(() => {
+    const aliases = new Set(getTradingSymbolAliases(selectedSymbol));
+    return Object.values(liveQuotes).find((quote) => aliases.has(quote.symbol.toUpperCase())) ?? null;
+  }, [liveQuotes, selectedSymbol]);
+  const liveQuotePrices = React.useMemo(
+    () => Object.fromEntries(Object.values(liveQuotes).map((quote) => [quote.symbol.toUpperCase(), quote.price])),
+    [liveQuotes],
+  );
   const openPositionSymbolsKey = (overview?.positions ?? [])
     .filter((position) => position.status === "OPEN")
     .map((position) => position.symbol.toUpperCase())
@@ -245,8 +256,8 @@ export default function OrdersPage() {
         return {
           ...current,
           account: nextAccount ?? current.account,
-          positions: nextPositions,
-          trades: nextTrades,
+          positions: mergeLivePositions(current.positions, nextPositions),
+          trades: mergeLiveTrades(current.trades, nextTrades),
         };
       });
     },
@@ -265,9 +276,15 @@ export default function OrdersPage() {
   const activeOrders = React.useMemo(
     () =>
       liveOverview?.positions.map((position) =>
-        mapPortfolioPositionToActiveOrder(position, liveQuotes[position.symbol.toUpperCase()] ?? null),
+        mapPortfolioPositionToActiveOrder(
+          position,
+          Object.values(liveQuotes).find((quote) =>
+            getTradingSymbolAliases(position.symbol).includes(quote.symbol.toUpperCase()),
+          ) ?? null,
+          liveQuotePrices,
+        ),
       ) ?? [],
-    [liveOverview?.positions, liveQuotes],
+    [liveOverview?.positions, liveQuotes, liveQuotePrices],
   );
   const recentTrades = React.useMemo(
     () =>
@@ -293,6 +310,7 @@ export default function OrdersPage() {
         latestPrice: liveQuoteForSymbol.price,
         bid: liveQuoteForSymbol.bid ?? null,
         ask: liveQuoteForSymbol.ask ?? null,
+        change: liveQuoteForSymbol.change ?? null,
         levels: 6,
       });
     }
@@ -322,6 +340,13 @@ export default function OrdersPage() {
                   };
                 });
 
+                queryClient.setQueryData<{ positions?: Array<{ id: string; status?: string }> }>(
+                  ["positions", result.account.id],
+                  (current) => current
+                    ? { ...current, positions: current.positions?.filter((position) => position.id !== result.position.id) }
+                    : current,
+                );
+
                 const currentSummary =
                   useLiveAccountSnapshotStore.getState().summariesByAccountId[result.account.id] ?? null;
                 useLiveAccountSnapshotStore.getState().setAccountSummary(
@@ -335,7 +360,7 @@ export default function OrdersPage() {
                 toast.error(error instanceof Error ? error.message : "Unable to close order.");
             }
         },
-        [refreshOverview, token],
+        [queryClient, refreshOverview, token],
     );
 
   const handleModifyProtection = React.useCallback(
