@@ -70,6 +70,13 @@ export function MarketSnapshotCard({ data, symbol, assetClass, className }: Mark
   const snapshot = data;
   const isPositive = snapshot.changePercent >= 0;
   const sparklinePalette = isPositive ? "profit" : "loss";
+  const sparklineValues = snapshot.sparkline.map((point) => point.value);
+  const sparklineMin = Math.min(...sparklineValues);
+  const sparklineMax = Math.max(...sparklineValues);
+  const scaleFactor = assetClass === "FOREX" ? 0.00025 : 0.0005;
+  const minimumVisibleRange = Math.max(Math.abs(snapshot.price) * scaleFactor, 0.00001);
+  const visibleRange = Math.max(sparklineMax - sparklineMin, minimumVisibleRange);
+  const sparklineCenter = (sparklineMin + sparklineMax) / 2;
 
   return (
     <div
@@ -84,6 +91,8 @@ export function MarketSnapshotCard({ data, symbol, assetClass, className }: Mark
             data={snapshot.sparkline}
             palette={sparklinePalette}
             fromZero={false}
+            minValue={sparklineCenter - visibleRange / 2}
+            maxValue={sparklineCenter + visibleRange / 2}
           />
         </div>
 
@@ -95,7 +104,7 @@ export function MarketSnapshotCard({ data, symbol, assetClass, className }: Mark
             <span className="text-sm font-regular">Market Snapshot</span>
           </div>
 
-          <div className="mt-2.5 flex flex-wrap items-end gap-2">
+          <div className="mt-2.5 flex xl:flex-col 2xl:flex-row flex-wrap items-end xl:items-start 2xl:items-end gap-2">
             <span className="text-2xl font-medium tracking-tight text-white md:text-[32px]">
               {formatTradingPrice(snapshot.price, symbol ?? undefined, assetClass ?? null)}
             </span>

@@ -58,6 +58,8 @@ export function MiniAreaLineChart({
   className = "",
   strokeId,
   fromZero = false,
+  minValue,
+  maxValue,
   palette,
   showEndDot = true,
 }: MiniAreaLineChartProps) {
@@ -71,10 +73,24 @@ export function MiniAreaLineChart({
     return null;
   }
 
-  const chartValues = fromZero && values[0] !== 0 ? [0, ...values] : values;
-  const min = fromZero ? 0 : Math.min(...chartValues);
-  const max = Math.max(...chartValues);
-  const range = max - min || 1;
+  const chartValues = fromZero && values[0] !== 0
+    ? [0, ...values]
+    : values.length === 1
+      ? [values[0], values[0]]
+      : values;
+  const dataMin = Math.min(...chartValues);
+  const dataMax = Math.max(...chartValues);
+  let min = fromZero ? 0 : Number.isFinite(minValue) ? Math.min(minValue as number, dataMin) : dataMin;
+  let max = Number.isFinite(maxValue) ? Math.max(maxValue as number, dataMax) : dataMax;
+
+  if (max <= min) {
+    const center = dataMin;
+    const padding = Math.max(Math.abs(center) * 0.0005, 0.00001);
+    min = center - padding;
+    max = center + padding;
+  }
+
+  const range = max - min;
 
   const points = chartValues.map((value, index) => ({
     x: padding + (index / Math.max(1, chartValues.length - 1)) * (width - padding * 2),
@@ -82,6 +98,7 @@ export function MiniAreaLineChart({
   }));
 
   const linePath = buildSmoothPath(points);
+  const isFlat = dataMax === dataMin;
   const first = points[0];
   const last = points[points.length - 1];
   const areaPath =
@@ -132,6 +149,18 @@ export function MiniAreaLineChart({
         strokeLinecap="round"
         strokeWidth="1.5"
       />
+
+      {isFlat ? (
+        <line
+          x1={0}
+          y1={points[0]?.y ?? height / 2}
+          x2={width}
+          y2={points[0]?.y ?? height / 2}
+          stroke={colors.stroke[2]}
+          strokeLinecap="round"
+          strokeWidth="1.5"
+        />
+      ) : null}
 
       {showEndDot && last ? (
         <>

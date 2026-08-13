@@ -233,7 +233,17 @@ export default function DashboardPage() {
           return;
         }
 
-        setMarketSnapshot(response.snapshot);
+        const initialSparkline = response.snapshot.sparkline.length > 0
+          ? [
+              ...response.snapshot.sparkline.slice(0, -1),
+              { value: response.snapshot.price },
+            ]
+          : [{ value: response.snapshot.price }];
+
+        setMarketSnapshot({
+          ...response.snapshot,
+          sparkline: initialSparkline,
+        });
         setMarketChart(response.chart);
       } catch {
         if (!isMounted) {
