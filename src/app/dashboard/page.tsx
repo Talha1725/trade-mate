@@ -25,6 +25,7 @@ import {
 } from "@/lib/utils/trader-data";
 import { getSupplementalQuoteSymbol } from "@/lib/utils/instrument-spec";
 import { mergeStablePositions } from "@/lib/utils/stable-positions";
+import { mergeLivePositions } from "@/lib/utils/live-portfolio";
 import { normalizeTradingSymbol } from "@/lib/utils/market-symbol-icon";
 import { resolveMarketWatchIcon } from "@/lib/utils/market-symbol-icon";
 import { formatTradingPrice } from "@/components/shared/trading-table-cells";
@@ -45,10 +46,7 @@ export default function DashboardPage() {
   const [ledger, setLedger] = React.useState<AccountLedgerResponse | null>(null);
   const [marketSnapshot, setMarketSnapshot] = React.useState<MarketSnapshotData | null>(null);
   const [marketChart, setMarketChart] = React.useState<MarketSnapshotChartSummary | null>(null);
-  const [livePositions, setLivePositions] = React.useState<PortfolioPosition[]>([]);
   const [liveQuotes, setLiveQuotes] = React.useState<Record<string, PriceSocketQuote>>({});
-  const openPositionOrderRef = React.useRef(new Map<string, number>());
-  const openPositionOrderCounterRef = React.useRef(0);
   const livePositionMissingCountsRef = React.useRef(new Map<string, number>());
 
   const selectedMarketId = useMarketSelectionStore((state) => state.selectedMarketId);
@@ -154,26 +152,14 @@ export default function DashboardPage() {
     [dashboardData?.positions],
   );
 
-  React.useEffect(() => {
-    if (openPortfolioPositions.length === 0) {
-      setLivePositions([]);
-      return;
-    }
-
-    for (const position of openPortfolioPositions) {
-      if (!openPositionOrderRef.current.has(position.id)) {
-        openPositionOrderRef.current.set(position.id, openPositionOrderCounterRef.current += 1);
-      }
-    }
-
-    const nextPositions = [...openPortfolioPositions].sort((left, right) => {
-      const leftOrder = openPositionOrderRef.current.get(left.id) ?? Number.MAX_SAFE_INTEGER;
-      const rightOrder = openPositionOrderRef.current.get(right.id) ?? Number.MAX_SAFE_INTEGER;
-      return leftOrder - rightOrder;
-    });
-
-    setLivePositions(nextPositions);
-  }, [openPortfolioPositions]);
+  const livePositions = React.useMemo(
+    () =>
+      [...openPortfolioPositions].sort((left, right) => {
+        const openedAtDifference = new Date(left.openedAt).getTime() - new Date(right.openedAt).getTime();
+        return openedAtDifference || left.id.localeCompare(right.id);
+      }),
+    [openPortfolioPositions],
+  );
   const openSymbols = React.useMemo(
     () =>
       Array.from(
@@ -480,10 +466,9 @@ export default function DashboardPage() {
           account: {
             ...account,
           },
-          positions: mergeStablePositions(
+          positions: mergeLivePositions(
             current.positions,
             payload.positions,
-            livePositionMissingCountsRef.current,
             { closedIds },
           ),
         };
@@ -511,10 +496,9 @@ export default function DashboardPage() {
           account: {
             ...account,
           },
-          positions: mergeStablePositions(
+          positions: mergeLivePositions(
             current.positions,
             payload.positions,
-            livePositionMissingCountsRef.current,
             { closedIds },
           ),
           trades: payload.trades,

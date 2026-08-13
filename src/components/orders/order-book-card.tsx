@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { IoArrowUpSharp } from "react-icons/io5";
+import { IoArrowDownSharp, IoArrowUpSharp } from "react-icons/io5";
 
 import {
   Select,
@@ -177,6 +177,7 @@ export function OrderBookCard({
     () => withCumulativeTotals(sortOrderBookRows(snapshot?.bids ?? [], sortBy, "bid")),
     [snapshot?.bids, sortBy],
   );
+  const isMidPriceUp = snapshot?.midDirection === "up";
   if (!snapshot) {
     return (
       <section
@@ -290,11 +291,14 @@ export function OrderBookCard({
       </div>
 
       <div className="mt-5 flex flex-col items-center gap-1 text-center">
-        <div className="inline-flex items-center gap-2 text-2xl font-semibold text-primary md:text-[32px]">
+        <div
+          className={cn(
+            "inline-flex items-center gap-2 text-2xl font-semibold md:text-[32px]",
+            isMidPriceUp ? "text-primary" : "text-[#EF4444]",
+          )}
+        >
           <span>{formatUsdPrice(snapshot.midPrice, symbol ?? undefined, assetClass)}</span>
-          {snapshot.midDirection === "up" ? (
-            <IoArrowUpSharp className="size-6" />
-          ) : null}
+          {isMidPriceUp ? <IoArrowUpSharp className="size-6" /> : <IoArrowDownSharp className="size-6" />}
         </div>
         <p className="text-sm text-white/60">
           Spread {formatTradingPrice(snapshot.spread, symbol ?? undefined, assetClass)} (

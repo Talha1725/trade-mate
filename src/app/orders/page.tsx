@@ -294,6 +294,7 @@ export default function OrdersPage() {
         latestPrice: liveQuoteForSymbol.price,
         bid: liveQuoteForSymbol.bid ?? null,
         ask: liveQuoteForSymbol.ask ?? null,
+        change: liveQuoteForSymbol.change ?? null,
         levels: 6,
       });
     }

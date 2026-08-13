@@ -389,6 +389,7 @@ export function generateEodhdOrderBook({
   latestPrice,
   bid,
   ask,
+  change,
   levels = 6,
 }: {
   symbol: string;
@@ -396,6 +397,7 @@ export function generateEodhdOrderBook({
   latestPrice: number;
   bid?: number | null;
   ask?: number | null;
+  change?: number | null;
   levels?: number;
 }): OrderBookSnapshot {
   const midPrice = round(latestPrice, latestPrice >= 100 ? 2 : 4);
@@ -412,7 +414,13 @@ export function generateEodhdOrderBook({
     midPrice,
     bestBid,
     bestAsk,
-    midDirection: latestPrice >= (bestBid + bestAsk) / 2 ? "up" : "down",
+    midDirection: change != null
+      ? change >= 0
+        ? "up"
+        : "down"
+      : latestPrice >= (bestBid + bestAsk) / 2
+        ? "up"
+        : "down",
     spread,
     spreadPercent: spreadPercentValue,
     asks: buildSideRows({
