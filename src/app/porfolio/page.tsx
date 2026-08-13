@@ -26,7 +26,7 @@ import {
 } from "@/lib/utils/portfolio";
 import { mapPortfolioPositionToPortfolioRow } from "@/lib/utils/trader-data";
 import { getSupplementalQuoteSymbol } from "@/lib/utils/instrument-spec";
-import { mergeStablePositions } from "@/lib/utils/stable-positions";
+import { mergeLivePositions } from "@/lib/utils/live-portfolio";
 import { getTradingSymbolAliases, normalizeTradingSymbol } from "@/lib/utils/market-symbol-icon";
 import { useLiveAccountSnapshotStore } from "@/lib/stores/live-account-snapshot-store";
 import { downloadTextFile } from "@/lib/utils/download";
@@ -48,7 +48,6 @@ export default function PortfolioPage() {
     const { data: tradingAssets = [] } = useSyncedTradingAssets();
     const positionOrderRef = React.useRef(new Map<string, number>());
     const positionOrderCounterRef = React.useRef(0);
-    const positionMissingCountsRef = React.useRef(new Map<string, number>());
     const [liveQuotes, setLiveQuotes] = React.useState<Record<string, PriceSocketQuote>>({});
     const liveQuotePrices = React.useMemo(
         () =>
@@ -107,7 +106,6 @@ export default function PortfolioPage() {
         setLiveQuotes({});
         positionOrderRef.current.clear();
         positionOrderCounterRef.current = 0;
-        positionMissingCountsRef.current.clear();
     }, [resolvedAccountId, token]);
 
     const normalizeOpenPositions = React.useCallback(
@@ -326,10 +324,9 @@ export default function PortfolioPage() {
                     ...current,
                     account,
                     positions: normalizeOpenPositions(
-                        mergeStablePositions(
+                        mergeLivePositions(
                             current.positions,
                             payload.positions,
-                            positionMissingCountsRef.current,
                             { closedIds },
                         ),
                     ),
