@@ -3,7 +3,6 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { ClockIcon } from "lucide-react";
-import { PiDownloadFill } from "react-icons/pi";
 import {
   flexRender,
   getCoreRowModel,
@@ -105,9 +104,6 @@ function TradeHistoryRowCells({ trade }: { trade: Trade }) {
       <TableCell className="px-4 py-2 text-sm font-medium text-white/60">
         {trade.stopLoss == null ? "-" : formatTradingPrice(trade.stopLoss, trade.symbol)}
       </TableCell>
-      <TableCell className="px-4 py-2 text-sm font-medium text-white/60">
-        {trade.exitStatus ? trade.exitStatus.charAt(0) + trade.exitStatus.slice(1).toLowerCase() : "-"}
-      </TableCell>
       <TableCell className="px-4 py-2">
         <TradingPnlValue value={trade.profit} />
       </TableCell>
@@ -177,11 +173,6 @@ const tradeHistoryColumns: ColumnDef<Trade>[] = [
     cell: ({ row }) => row.original.stopLoss == null ? "-" : formatTradingPrice(row.original.stopLoss, row.original.symbol),
   },
   {
-    accessorKey: "exitStatus",
-    header: ({ column }) => <SortableColumnHeader column={column} label="Exit Status" />,
-    cell: ({ row }) => row.original.exitStatus ? row.original.exitStatus.charAt(0) + row.original.exitStatus.slice(1).toLowerCase() : "-",
-  },
-  {
     accessorKey: "profit",
     header: ({ column }) => <SortableColumnHeader column={column} label="P&L" />,
     cell: ({ row }) => <TradingPnlValue value={row.original.profit} />,
@@ -241,7 +232,6 @@ export function TradeHistoryTable({
       "Exit",
       "TP",
       "SL",
-      "Exit Status",
       "P&L",
       "Status",
     ];
@@ -258,7 +248,6 @@ export function TradeHistoryTable({
         trade.closeP,
         trade.takeProfit ?? "",
         trade.stopLoss ?? "",
-        trade.exitStatus ?? "",
         trade.profit.toFixed(2),
         trade.status ?? "Closed",
       ];
@@ -319,7 +308,7 @@ export function TradeHistoryTable({
       ) : (
         <div className="space-y-4">
           <ResponsiveTableScroll>
-            <Table className="min-w-[1500px] table-fixed whitespace-nowrap">
+            <Table className="min-w-[1370px] table-fixed whitespace-nowrap">
               <colgroup>
                 <col className="w-[200px]" />
                 <col className="w-[200px]" />
@@ -331,7 +320,6 @@ export function TradeHistoryTable({
                 <col className="w-[120px]" />
                 <col className="w-[120px]" />
                 <col className="w-[120px]" />
-                <col className="w-[130px]" />
                 <col className="w-[110px]" />
                 <col className="w-[100px]" />
               </colgroup>
