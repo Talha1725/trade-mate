@@ -3,10 +3,10 @@
 import * as React from "react";
 import { CandlestickSeries, ColorType, CrosshairMode, LineSeries, LineStyle, createChart, type IChartApi, type ISeriesApi, type UTCTimestamp } from "lightweight-charts";
 import { buildIndicatorSeries, calculateEma, calculateVwap, type VwapCalculationSettings } from "@/lib/utils/chart-indicators";
-import { mergeLiveQuoteIntoCandles } from "@/lib/utils/merge-live-quote-candles";
+import { getBucketSeconds, mergeLiveQuoteIntoCandles } from "@/lib/utils/merge-live-quote-candles";
 import type { ChartCandle, ChartLiveQuote } from "@/types/eodhd";
 import type { TradingTimeframe } from "@/types/trading-filter-bar";
-import { CANDLE_DOWN, CANDLE_UP, CHART_BACKGROUND, COMPARE_LINE_COLOR, EMA50_COLOR, GRID_COLOR, LAST_PRICE_COLOR, SUB_CHART_AXIS_COLOR, SUB_CHART_X_AXIS_FONT_SIZE, TEXT_COLOR, VWAP_BAND_COLORS, VWAP_COLOR, getDefaultVisibleBars } from "@/constants/chart/lightweight-chart";
+import { CANDLE_DOWN, CANDLE_UP, CHART_BACKGROUND, COMPARE_LINE_COLOR, EMA50_COLOR, GRID_COLOR, LAST_PRICE_COLOR, SUB_CHART_AXIS_COLOR, SUB_CHART_X_AXIS_FONT_SIZE, TEXT_COLOR, VWAP_BAND_COLORS, VWAP_COLOR } from "@/constants/chart/lightweight-chart";
 import { formatChartPrice, getChartPriceFormat } from "@/lib/utils/chart/formatters";
 
 function toSeriesTime(time: number) { return time as UTCTimestamp; }
@@ -407,16 +407,15 @@ export function useChartInstance(options: ChartInstanceOptions) {
 
     const viewKey = `${symbol}|${timeframe}`;
 
-    if (initialViewKeyRef.current !== viewKey) {
-      const visibleBars = getDefaultVisibleBars(timeframe);
+    if (initialViewKeyRef.current !== viewKey && candles.length > 0) {
+      const bucketSeconds = getBucketSeconds(timeframe);
+      const sixDays = 6 * 24 * 60 * 60;
+      const visibleBars = Math.max(1, Math.ceil(sixDays / bucketSeconds));
       const lastIndex = displayCandles.length - 1;
       const from = Math.max(0, lastIndex - visibleBars + 1);
-      const to = Math.max(lastIndex + 4, from + visibleBars);
+      const to = Math.max(lastIndex + 2, from + visibleBars);
 
       mainChart.timeScale().setVisibleLogicalRange({ from, to });
-      subChart.timeScale().setVisibleLogicalRange({ from, to });
-      mainChart.timeScale().scrollToRealTime();
-      subChart.timeScale().scrollToRealTime();
       initialViewKeyRef.current = viewKey;
     }
     window.requestAnimationFrame(() => overlayRevision((current) => current + 1));
@@ -425,7 +424,7 @@ export function useChartInstance(options: ChartInstanceOptions) {
       cancelAnimationFrame(labelFrameId);
       mainChart.timeScale().unsubscribeVisibleLogicalRangeChange(updateLastPriceLabel);
     };
-  }, [chartDataKey, chartReady, displayCompareCandles, enabledIndicators, indicatorPeriods, normalizedCompareSymbol, displayCandles, vwapSettings]);
+  }, [candles.length, chartDataKey, chartReady, displayCompareCandles, enabledIndicators, indicatorPeriods, normalizedCompareSymbol, displayCandles, vwapSettings]);
 
 
 
