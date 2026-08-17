@@ -46,6 +46,7 @@ const SELL_COLOR = "#EF4444";
 const MARKER_GAP = 4;
 const STACK_GAP = 4;
 const HIT_SIZE = 36;
+const OVERLAY_EDGE_GAP = 8;
 
 function bucketMarkerTime(time: number, bucketSeconds: number) {
   return Math.floor(time / bucketSeconds) * bucketSeconds;
@@ -95,6 +96,9 @@ export function TradeMarkerOverlay({
   onTradeMarkerClick,
 }: TradeMarkerOverlayProps) {
   const [hoveredGroup, setHoveredGroup] = React.useState<string | null>(null);
+  const overlayRef = React.useRef<HTMLDivElement>(null);
+  const tooltipRef = React.useRef<HTMLDivElement>(null);
+  const [tooltipPosition, setTooltipPosition] = React.useState({ left: 0, top: 0 });
 
   const positionedMarkers = React.useMemo(() => {
     void viewportRevision;
@@ -160,8 +164,29 @@ export function TradeMarkerOverlay({
     : [];
   const hoveredTooltip = hoveredGroupMarkers.map((marker) => markerTooltip(marker, formatPrice)).join("\n\n");
 
+  React.useLayoutEffect(() => {
+    if (!hoveredMarker || !tooltipRef.current || !overlayRef.current) return;
+
+    const overlay = overlayRef.current;
+    const tooltip = tooltipRef.current;
+    const tooltipWidth = tooltip.offsetWidth;
+    const tooltipHeight = tooltip.offsetHeight;
+    const left = Math.max(
+      OVERLAY_EDGE_GAP + tooltipWidth / 2,
+      Math.min(overlay.clientWidth - OVERLAY_EDGE_GAP - tooltipWidth / 2, hoveredMarker.x),
+    );
+    const preferredTop = hoveredMarker.y - HIT_SIZE / 2 - 4 - tooltipHeight;
+    const belowTop = hoveredMarker.y + HIT_SIZE / 2 + 4;
+    const top = Math.max(
+      OVERLAY_EDGE_GAP,
+      Math.min(overlay.clientHeight - tooltipHeight - OVERLAY_EDGE_GAP, preferredTop < OVERLAY_EDGE_GAP ? belowTop : preferredTop),
+    );
+
+    setTooltipPosition({ left, top });
+  }, [hoveredMarker, hoveredTooltip, viewportRevision]);
+
   return (
-    <div className="pointer-events-none absolute inset-0 z-[50] overflow-visible" aria-label="Trade markers">
+    <div ref={overlayRef} className="pointer-events-none absolute inset-y-0 left-0 right-16 z-[50] overflow-hidden" aria-label="Trade markers">
       {visibleMarkers.map((marker) => {
         const groupKey = `${marker.bucketTime}:${marker.side}`;
         const isCollapsed = marker.groupCount > 1 && marker.stackIndex === 0
@@ -216,10 +241,12 @@ export function TradeMarkerOverlay({
       })}
       {hoveredMarker ? (
         <div
-          className="pointer-events-none absolute z-[99999] w-56 -translate-x-1/2 -translate-y-full whitespace-pre-line rounded-md border px-2.5 py-2 text-[11px] text-white shadow-xl"
+          ref={tooltipRef}
+          className="pointer-events-none absolute z-[99999] w-56 whitespace-pre-line rounded-md border px-2.5 py-2 text-[11px] text-white shadow-xl"
           style={{
-            left: hoveredMarker.x,
-            top: hoveredMarker.y - HIT_SIZE / 2 - 4,
+            left: tooltipPosition.left,
+            top: tooltipPosition.top,
+            transform: "translateX(-50%)",
             background: "rgba(8, 12, 18, 0.96)",
             borderColor: hoveredMarker.side === "buy" ? BUY_COLOR : SELL_COLOR,
           }}
