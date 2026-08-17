@@ -985,6 +985,8 @@ export function LightweightTradingChart({
 
     chart.timeScale().setVisibleLogicalRange(range);
     subChart.timeScale().setVisibleLogicalRange(range);
+    chart.timeScale().scrollToRealTime();
+    subChart.timeScale().scrollToRealTime();
   }, [displayCandles.length, timeframe]);
 
   const updateSelectedFibonacci = React.useCallback((update: (drawing: FibonacciDrawing) => FibonacciDrawing) => {
