@@ -44,3 +44,18 @@ export type ChartToolbarPanelProps = {
   onUndo: () => void;
   onRedo: () => void;
 };
+
+export type ChartToolbarProps = {
+  className?: string;
+  activeTool: ChartToolId;
+  magnetMode: MagnetMode;
+  onToolChange: (tool: ChartToolId) => void;
+  onMagnetToggle: () => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onReset: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  enabledIndicators: ChartIndicatorId[];
+  onIndicatorToggle: (indicator: ChartIndicatorId) => void;
+};

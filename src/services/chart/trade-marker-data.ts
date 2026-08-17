@@ -3,7 +3,7 @@
 import { getTradingSymbolAliases } from "@/lib/utils/market-symbol-icon";
 import { parseTradeTime } from "@/lib/utils/chart/formatters";
 import type { PortfolioPosition, PortfolioTrade } from "@/types/dashboard";
-import type { TradeMarker } from "@/components/dashboard/trade-marker-overlay";
+import type { TradeMarker } from "@/types/chart/trade-marker";
 
 export function deriveTradeMarkers(symbol: string, trades: PortfolioTrade[], tradePositions: PortfolioPosition[]): TradeMarker[] {
   const chartAliases = new Set(getTradingSymbolAliases(symbol));
@@ -27,4 +27,3 @@ export function deriveTradeMarkers(symbol: string, trades: PortfolioTrade[], tra
   }
   return derivedMarkers;
 }
-

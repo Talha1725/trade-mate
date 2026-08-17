@@ -1,60 +1,9 @@
 "use client";
 
-import {
-  Brush,
-  ChartSpline,
-  Crosshair,
-  Magnet,
-  PenLine,
-  Ruler,
-  TrendingUp,
-  Type,
-  RotateCcw,
-  Undo2,
-  Redo2,
-  ZoomIn,
-  ZoomOut,
-} from "lucide-react";
-
 import { cn } from "@/lib/utils";
-import type { ChartIndicatorId, ChartToolId, MagnetMode } from "@/types/lightweight-trading-chart";
-
-const TOOLBAR_ITEMS = [
-  { id: "crosshair", icon: Crosshair, label: "Crosshair" },
-  { id: "trendline", icon: TrendingUp, label: "Trend line" },
-  { id: "fibonacci", icon: ChartSpline, label: "Fibonacci retracement" },
-  { id: "brush", icon: Brush, label: "Brush" },
-  { id: "path", icon: PenLine, label: "Path" },
-  { id: "text", icon: Type, label: "Text" },
-  { id: "magnet", icon: Magnet, label: "Magnet" },
-  { id: "ruler", icon: Ruler, label: "Scale / Measure" },
-  { id: "zoom-in", icon: ZoomIn, label: "Zoom in" },
-  { id: "zoom-out", icon: ZoomOut, label: "Zoom out" },
-  { id: "reset", icon: RotateCcw, label: "Reset view" },
-  { id: "undo", icon: Undo2, label: "Undo drawing" },
-  { id: "redo", icon: Redo2, label: "Redo drawing" },
-] as const;
-
-const INDICATOR_ITEMS = [
-  { id: "ema", icon: TrendingUp, label: "EMA" },
-  // VWAP remains available to the chart implementation, but is intentionally
-  // hidden from the sidebar while its on-chart settings control is used.
-] as const;
-
-type ChartToolbarProps = {
-  className?: string;
-  activeTool: ChartToolId;
-  magnetMode: MagnetMode;
-  onToolChange: (tool: ChartToolId) => void;
-  onMagnetToggle: () => void;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-  onReset: () => void;
-  onUndo: () => void;
-  onRedo: () => void;
-  enabledIndicators: ChartIndicatorId[];
-  onIndicatorToggle: (indicator: ChartIndicatorId) => void;
-};
+import { INDICATOR_ITEMS, TOOLBAR_ITEMS } from "@/constants/chart/toolbar";
+import type { ChartToolbarProps } from "@/types/chart/chart-component-props";
+import type { ChartIndicatorId, ChartToolId } from "@/types/lightweight-trading-chart";
 
 export function ChartToolbar({
   className,

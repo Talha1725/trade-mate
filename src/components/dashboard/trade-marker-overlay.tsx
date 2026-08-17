@@ -3,50 +3,8 @@
 import * as React from "react";
 
 import type { ChartCandle } from "@/types/eodhd";
-
-export type TradeMarkerSide = "buy" | "sell";
-
-export type TradeMarker = {
-  id: string;
-  time: number;
-  side: TradeMarkerSide;
-  price: number;
-  quantity?: number;
-  orderType?: "market" | "limit";
-  label?: string;
-  timestamp?: string | null;
-  symbol?: string;
-  metadata?: unknown;
-};
-
-type TradeMarkerOverlayProps = {
-  markers: TradeMarker[];
-  candles: ChartCandle[];
-  bucketSeconds: number;
-  viewportRevision?: number;
-  showTradeMarkers?: boolean;
-  getPixelPoint: (point: { time: number; price: number }) => { x: number; y: number } | null;
-  formatPrice?: (price: number) => string;
-  onTradeMarkerClick?: (marker: TradeMarker) => void;
-};
-
-type PositionedMarker = TradeMarker & {
-  candle: ChartCandle;
-  bucketTime: number;
-  x: number;
-  y: number;
-  candleWidth: number;
-  stackIndex: number;
-  groupCount: number;
-  collapsed: boolean;
-};
-
-const BUY_COLOR = "#22E0A2";
-const SELL_COLOR = "#EF4444";
-const MARKER_GAP = 4;
-const STACK_GAP = 4;
-const HIT_SIZE = 36;
-const OVERLAY_EDGE_GAP = 8;
+import { TRADE_MARKER_BUY_COLOR, TRADE_MARKER_GAP, TRADE_MARKER_HIT_SIZE, TRADE_MARKER_OVERLAY_EDGE_GAP, TRADE_MARKER_SELL_COLOR, TRADE_MARKER_STACK_GAP } from "@/constants/chart/trade-marker";
+import type { PositionedTradeMarker, TradeMarker, TradeMarkerOverlayProps } from "@/types/chart/trade-marker";
 
 function bucketMarkerTime(time: number, bucketSeconds: number) {
   return Math.floor(time / bucketSeconds) * bucketSeconds;
@@ -107,7 +65,7 @@ export function TradeMarkerOverlay({
     const candleByTime = new Map(candles.map((candle) => [candle.time, candle]));
     const sideCounts = new Map<string, number>();
     const markerGroups = new Map<string, number>();
-    const result: PositionedMarker[] = [];
+    const result: PositionedTradeMarker[] = [];
 
     for (const marker of markers) {
       if (!Number.isFinite(marker.time) || !Number.isFinite(marker.price)) continue;
@@ -128,8 +86,8 @@ export function TradeMarkerOverlay({
       markerGroups.set(groupKey, (markerGroups.get(groupKey) ?? 0) + 1);
       const candleWidth = getCandleWidth(marker, bucketTime, candles, getPixelPoint);
       const markerY = marker.side === "buy"
-        ? lowPixel.y + MARKER_GAP + stackIndex * STACK_GAP
-        : highPixel.y - MARKER_GAP - stackIndex * STACK_GAP;
+        ? lowPixel.y + TRADE_MARKER_GAP + stackIndex * TRADE_MARKER_STACK_GAP
+        : highPixel.y - TRADE_MARKER_GAP - stackIndex * TRADE_MARKER_STACK_GAP;
 
       result.push({
         ...marker,
@@ -146,7 +104,7 @@ export function TradeMarkerOverlay({
 
     return result.map((marker) => {
       const groupCount = markerGroups.get(`${marker.bucketTime}:${marker.side}`) ?? 1;
-      const maxStackedMarkers = Math.max(1, Math.floor((Math.max(marker.candleWidth, 2) + 2) / STACK_GAP));
+      const maxStackedMarkers = Math.max(1, Math.floor((Math.max(marker.candleWidth, 2) + 2) / TRADE_MARKER_STACK_GAP));
       return {
         ...marker,
         groupCount,
@@ -172,33 +130,33 @@ export function TradeMarkerOverlay({
     const tooltipWidth = tooltip.offsetWidth;
     const tooltipHeight = tooltip.offsetHeight;
     const left = Math.max(
-      OVERLAY_EDGE_GAP + tooltipWidth / 2,
-      Math.min(overlay.clientWidth - OVERLAY_EDGE_GAP - tooltipWidth / 2, hoveredMarker.x),
+      TRADE_MARKER_OVERLAY_EDGE_GAP + tooltipWidth / 2,
+      Math.min(overlay.clientWidth - TRADE_MARKER_OVERLAY_EDGE_GAP - tooltipWidth / 2, hoveredMarker.x),
     );
-    const preferredTop = hoveredMarker.y - HIT_SIZE / 2 - 4 - tooltipHeight;
-    const belowTop = hoveredMarker.y + HIT_SIZE / 2 + 4;
+    const preferredTop = hoveredMarker.y - TRADE_MARKER_HIT_SIZE / 2 - 4 - tooltipHeight;
+    const belowTop = hoveredMarker.y + TRADE_MARKER_HIT_SIZE / 2 + 4;
     const top = Math.max(
-      OVERLAY_EDGE_GAP,
-      Math.min(overlay.clientHeight - tooltipHeight - OVERLAY_EDGE_GAP, preferredTop < OVERLAY_EDGE_GAP ? belowTop : preferredTop),
+      TRADE_MARKER_OVERLAY_EDGE_GAP,
+      Math.min(overlay.clientHeight - tooltipHeight - TRADE_MARKER_OVERLAY_EDGE_GAP, preferredTop < TRADE_MARKER_OVERLAY_EDGE_GAP ? belowTop : preferredTop),
     );
 
     setTooltipPosition({ left, top });
   }, [hoveredMarker, hoveredTooltip, viewportRevision]);
 
   return (
-    <div ref={overlayRef} className="pointer-events-none absolute inset-y-0 left-0 right-16 z-[50] overflow-hidden" aria-label="Trade markers">
+      <div ref={overlayRef} className="pointer-events-none absolute inset-y-0 left-0 right-16 z-[50] overflow-hidden" aria-label="Trade markers">
       {visibleMarkers.map((marker) => {
         const groupKey = `${marker.bucketTime}:${marker.side}`;
         const isCollapsed = marker.groupCount > 1 && marker.stackIndex === 0
           && positionedMarkers.some((item) => item.bucketTime === marker.bucketTime && item.side === marker.side && item.collapsed);
-        const color = marker.side === "buy" ? BUY_COLOR : SELL_COLOR;
+        const color = marker.side === "buy" ? TRADE_MARKER_BUY_COLOR : TRADE_MARKER_SELL_COLOR;
         const isDot = marker.candleWidth <= 2;
 
         return (
           <div
             key={marker.id}
             className="pointer-events-auto absolute"
-            style={{ left: marker.x, top: marker.y, width: HIT_SIZE, height: HIT_SIZE, transform: "translate(-50%, -50%)" }}
+            style={{ left: marker.x, top: marker.y, width: TRADE_MARKER_HIT_SIZE, height: TRADE_MARKER_HIT_SIZE, transform: "translate(-50%, -50%)" }}
             onPointerEnter={() => setHoveredGroup(groupKey)}
             onPointerLeave={() => setHoveredGroup((current) => current === groupKey ? null : current)}
           >
@@ -248,7 +206,7 @@ export function TradeMarkerOverlay({
             top: tooltipPosition.top,
             transform: "translateX(-50%)",
             background: "rgba(8, 12, 18, 0.96)",
-            borderColor: hoveredMarker.side === "buy" ? BUY_COLOR : SELL_COLOR,
+            borderColor: hoveredMarker.side === "buy" ? TRADE_MARKER_BUY_COLOR : TRADE_MARKER_SELL_COLOR,
           }}
         >
           {hoveredTooltip}

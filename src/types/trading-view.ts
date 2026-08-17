@@ -2,7 +2,7 @@ import type { PositionSummary } from "@/types/dashboard";
 import type { RecentActivityItem } from "@/types/dashboard";
 import type { PortfolioPosition, PortfolioTrade } from "@/types/dashboard";
 import type { ChartLiveQuote } from "@/types/eodhd";
-import type { TradeMarker } from "@/components/dashboard/trade-marker-overlay";
+import type { TradeMarker } from "@/types/chart/trade-marker";
 import type {
   TradingFilterBarAsset,
   TradingFilterBarOhlcv,
