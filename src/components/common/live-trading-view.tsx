@@ -11,6 +11,9 @@ export function LiveTradingView({
   compareLiveQuote = null,
   trades = [],
   tradePositions = [],
+  markers = [],
+  showTradeMarkers = true,
+  onTradeMarkerClick,
   className,
 }: LiveTradingViewProps) {
   return (
@@ -22,6 +25,9 @@ export function LiveTradingView({
       compareLiveQuote={compareLiveQuote}
       trades={trades}
       tradePositions={tradePositions}
+      markers={markers}
+      showTradeMarkers={showTradeMarkers}
+      onTradeMarkerClick={onTradeMarkerClick}
       className={className}
     />
   );

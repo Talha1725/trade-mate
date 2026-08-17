@@ -15,6 +15,7 @@ import {
 import { AlertTriangle, Loader2, Settings2, X } from "lucide-react";
 
 import { ChartToolbar } from "@/components/dashboard/chart-toolbar";
+import { TradeMarkerOverlay, type TradeMarker } from "@/components/dashboard/trade-marker-overlay";
 import { useChartMarketData } from "@/hooks/use-chart-market-data";
 import { useEodhdMarketQuotes } from "@/hooks/use-eodhd-market-quotes";
 import {
@@ -24,7 +25,7 @@ import {
   calculateVwap,
   DEFAULT_VWAP_CALCULATION,
 } from "@/lib/utils/chart-indicators";
-import { mergeLiveQuoteIntoCandles } from "@/lib/utils/merge-live-quote-candles";
+import { getBucketSeconds, mergeLiveQuoteIntoCandles } from "@/lib/utils/merge-live-quote-candles";
 import { calculateFibPrice, DEFAULT_FIBONACCI_LEVELS, formatFibonacciLevelLabel } from "@/lib/utils/fibonacci";
 import { resolveMagnetSnap, validateMagnetSettings } from "@/lib/utils/magnet-snap";
 import { getTradingSymbolAliases } from "@/lib/utils/market-symbol-icon";
@@ -196,20 +197,6 @@ function parseTradeTime(value: string | null | undefined) {
   return Number.isFinite(timestamp) ? timestamp / 1000 : null;
 }
 
-function formatTradeTooltipTime(value: string | null | undefined) {
-  if (!value) return "--";
-  const timestamp = Date.parse(value);
-  if (!Number.isFinite(timestamp)) return value;
-  return new Date(timestamp).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
-}
-
-function nearestCandleTime(time: number, candles: ChartCandle[]) {
-  if (candles.length === 0) return time;
-  return candles.reduce((nearest, candle) => (
-    Math.abs(candle.time - time) < Math.abs(nearest - time) ? candle.time : nearest
-  ), candles[0].time);
-}
-
 function toSeriesTime(time: number) {
   return time as UTCTimestamp;
 }
@@ -367,6 +354,9 @@ export function LightweightTradingChart({
   compareLiveQuote = null,
   trades = [],
   tradePositions = [],
+  markers = [],
+  showTradeMarkers = true,
+  onTradeMarkerClick,
   className,
 }: LightweightTradingChartProps) {
   const mainContainerRef = React.useRef<HTMLDivElement>(null);
@@ -402,7 +392,6 @@ export function LightweightTradingChart({
   const [renderedDrawings, setRenderedDrawings] = React.useState<React.ReactNode[]>([]);
   const [isDrawing, setIsDrawing] = React.useState(false);
   const [selectedDrawingId, setSelectedDrawingId] = React.useState<string | null>(null);
-  const [hoveredTradeMarkerId, setHoveredTradeMarkerId] = React.useState<string | null>(null);
   const [hoveredTrendlineId, setHoveredTrendlineId] = React.useState<string | null>(null);
   const [hoveredTrendlineEndpoint, setHoveredTrendlineEndpoint] = React.useState<0 | 1 | null>(null);
   const [textEditor, setTextEditor] = React.useState<{ point: ChartPoint; value: string; pixel: { x: number; y: number }; editingId?: string } | null>(null);
@@ -2301,7 +2290,7 @@ export function LightweightTradingChart({
     : null;
   const textEditorPixel = textEditor?.pixel ?? null;
   const snapPixel = snapIndicator ? toPixelPoint(snapIndicator.point) : null;
-  const tradeMarkers = React.useMemo(() => {
+  const derivedTradeMarkers = React.useMemo<TradeMarker[]>(() => {
     const chartAliases = new Set(getTradingSymbolAliases(symbol));
     const tradePositionIds = new Set(trades.map((trade) => trade.positionId).filter(Boolean));
     const fallbackTrades: PortfolioTrade[] = tradePositions
@@ -2327,15 +2316,7 @@ export function LightweightTradingChart({
         notes: null,
         positionId: position.id,
       }));
-    const markers: Array<{
-      id: string;
-      trade: PortfolioTrade;
-      kind: "entry" | "exit";
-      label: "BUY" | "SELL";
-      time: number;
-      price: number;
-      pixel: { x: number; y: number };
-    }> = [];
+    const derivedMarkers: TradeMarker[] = [];
 
     for (const trade of [...trades, ...fallbackTrades]) {
       const tradeAliases = new Set([
@@ -2347,42 +2328,41 @@ export function LightweightTradingChart({
       const entryTime = parseTradeTime(trade.openedAt);
       const entryPrice = Number(trade.entryPrice);
       if (entryTime !== null && Number.isFinite(entryPrice)) {
-        const pixel = toPixelPoint({ time: entryTime, price: entryPrice })
-          ?? toPixelPoint({ time: nearestCandleTime(entryTime, displayCandles), price: entryPrice });
-        if (pixel) {
-          markers.push({
+        derivedMarkers.push({
             id: `${trade.id}-entry`,
-            trade,
-            kind: "entry",
-            label: trade.direction === "BUY" ? "BUY" : "SELL",
+            side: trade.direction === "BUY" ? "buy" : "sell",
             time: entryTime,
             price: entryPrice,
-            pixel,
+            quantity: Number(trade.lots),
+            label: "Entry",
+            timestamp: trade.openedAt,
+            symbol: trade.symbol,
+            metadata: trade,
           });
-        }
       }
 
       const exitTime = parseTradeTime(trade.closedAt);
       const exitPrice = trade.exitPrice === null ? null : Number(trade.exitPrice);
       if (exitTime !== null && exitPrice !== null && Number.isFinite(exitPrice)) {
-        const pixel = toPixelPoint({ time: exitTime, price: exitPrice })
-          ?? toPixelPoint({ time: nearestCandleTime(exitTime, displayCandles), price: exitPrice });
-        if (pixel) {
-          markers.push({
+        derivedMarkers.push({
             id: `${trade.id}-exit`,
-            trade,
-            kind: "exit",
-            label: trade.direction === "BUY" ? "SELL" : "BUY",
+            side: trade.direction === "BUY" ? "sell" : "buy",
             time: exitTime,
             price: exitPrice,
-            pixel,
+            quantity: Number(trade.lots),
+            label: "Exit",
+            timestamp: trade.closedAt,
+            symbol: trade.symbol,
+            metadata: trade,
           });
-        }
       }
     }
 
-    return markers;
-  }, [displayCandles, symbol, toPixelPoint, tradePositions, trades]);
+    return derivedMarkers;
+  }, [symbol, tradePositions, trades]);
+
+  const allTradeMarkers = React.useMemo(() => [...derivedTradeMarkers, ...markers], [derivedTradeMarkers, markers]);
+  const tradeMarkerBucketSeconds = getBucketSeconds(timeframe);
 
   return (
     <div
@@ -2472,50 +2452,16 @@ export function LightweightTradingChart({
                 <circle cx={snapPixel.x} cy={snapPixel.y} r="5" fill="#FFFFFF" stroke="#2962FF" strokeWidth="2" pointerEvents="none" />
               ) : null}
             </svg>
-            {tradeMarkers.map((marker) => {
-              const isBuy = marker.label === "BUY";
-              const color = isBuy ? "#22E0A2" : "#EF4444";
-              const isHovered = hoveredTradeMarkerId === marker.id;
-              const tooltipLeft = Math.min(Math.max(marker.pixel.x + 10, 4), 330);
-              const tooltipTop = Math.max(4, marker.pixel.y - 92);
-              return (
-                <div
-                  key={marker.id}
-                  className="pointer-events-auto absolute z-15"
-                  style={{ left: marker.pixel.x, top: marker.pixel.y, transform: "translate(-50%, -50%)" }}
-                  onPointerEnter={() => setHoveredTradeMarkerId(marker.id)}
-                  onPointerLeave={() => setHoveredTradeMarkerId((current) => current === marker.id ? null : current)}
-                >
-                  <button
-                    type="button"
-                    aria-label={`${marker.label} trade marker`}
-                    className="flex size-4 items-center justify-center rounded-full border-2 border-white shadow-[0_0_0_2px_rgba(0,0,0,0.55)]"
-                    style={{ backgroundColor: color }}
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    <span className="sr-only">{marker.label}</span>
-                  </button>
-                  {isHovered ? (
-                    <div
-                      className="pointer-events-none absolute w-56 rounded-md border px-3 py-2 text-[11px] text-white shadow-xl"
-                      style={{ left: tooltipLeft - marker.pixel.x, top: tooltipTop - marker.pixel.y, background: "rgba(8, 12, 18, 0.96)", borderColor: color }}
-                    >
-                      <div className="mb-1 flex items-center justify-between gap-3 font-semibold" style={{ color }}>
-                        <span>{marker.label} · {marker.kind === "entry" ? "Entry" : "Exit"}</span>
-                        <span>{marker.trade.symbol}</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-white/70">
-                        <span>Price</span><span className="text-right text-white">{formatTrendlinePrice(marker.price)}</span>
-                        <span>Lots</span><span className="text-right text-white">{marker.trade.lots}</span>
-                        <span>P&amp;L</span><span className={`text-right ${Number(marker.trade.pnl) >= 0 ? "text-[#22E0A2]" : "text-[#EF4444]"}`}>{formatLegendValue(Number(marker.trade.pnl))}</span>
-                        <span>Status</span><span className="text-right text-white">{marker.trade.status}</span>
-                        <span>Time</span><span className="text-right text-white">{formatTradeTooltipTime(marker.kind === "entry" ? marker.trade.openedAt : marker.trade.closedAt)}</span>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
+            <TradeMarkerOverlay
+              markers={allTradeMarkers}
+              candles={displayCandles}
+              bucketSeconds={tradeMarkerBucketSeconds}
+              viewportRevision={overlayRevision}
+              showTradeMarkers={showTradeMarkers}
+              getPixelPoint={toPixelPoint}
+              formatPrice={(price) => formatTrendlinePrice(price)}
+              onTradeMarkerClick={onTradeMarkerClick}
+            />
             {enabledIndicators.length > 0 ? (
               <div
                 className="pointer-events-auto absolute left-3 top-3 z-20 flex items-center gap-2 rounded-md border border-white/20 bg-black/90 px-2 py-1.5 text-[11px] text-white shadow-lg"

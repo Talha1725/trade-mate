@@ -1,6 +1,7 @@
 import type { ChartLiveQuote } from "@/types/eodhd";
 import type { PortfolioPosition, PortfolioTrade } from "@/types/dashboard";
 import type { TradingTimeframe } from "@/types/trading-filter-bar";
+import type { TradeMarker } from "@/components/dashboard/trade-marker-overlay";
 
 export type LightweightTradingChartProps = {
   symbol: string;
@@ -10,6 +11,9 @@ export type LightweightTradingChartProps = {
   compareLiveQuote?: ChartLiveQuote | null;
   trades?: PortfolioTrade[];
   tradePositions?: PortfolioPosition[];
+  markers?: TradeMarker[];
+  showTradeMarkers?: boolean;
+  onTradeMarkerClick?: (marker: TradeMarker) => void;
   className?: string;
 };
 

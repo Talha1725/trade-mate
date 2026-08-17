@@ -1,7 +1,7 @@
 import type { ChartCandle, ChartLiveQuote } from "@/types/eodhd";
 import type { TradingTimeframe } from "@/types/trading-filter-bar";
 
-function getBucketSeconds(timeframe: TradingTimeframe) {
+export function getBucketSeconds(timeframe: TradingTimeframe) {
   switch (timeframe) {
     case "1m":
       return 60;

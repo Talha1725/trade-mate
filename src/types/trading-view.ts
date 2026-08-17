@@ -2,6 +2,7 @@ import type { PositionSummary } from "@/types/dashboard";
 import type { RecentActivityItem } from "@/types/dashboard";
 import type { PortfolioPosition, PortfolioTrade } from "@/types/dashboard";
 import type { ChartLiveQuote } from "@/types/eodhd";
+import type { TradeMarker } from "@/components/dashboard/trade-marker-overlay";
 import type {
   TradingFilterBarAsset,
   TradingFilterBarOhlcv,
@@ -27,6 +28,9 @@ export type LiveTradingViewProps = {
   compareLiveQuote?: ChartLiveQuote | null;
   trades?: PortfolioTrade[];
   tradePositions?: PortfolioPosition[];
+  markers?: TradeMarker[];
+  showTradeMarkers?: boolean;
+  onTradeMarkerClick?: (marker: TradeMarker) => void;
   className?: string;
   positions?: PositionSummary[];
   recentActivity?: RecentActivityItem[];

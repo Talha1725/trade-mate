@@ -21,7 +21,7 @@ import {
 } from "@/lib/utils/trader-data";
 import { getSupplementalQuoteSymbol } from "@/lib/utils/instrument-spec";
 import { mergeStablePositions } from "@/lib/utils/stable-positions";
-import { mergeLivePositions } from "@/lib/utils/live-portfolio";
+import { mergeLivePositions, mergeLiveTrades } from "@/lib/utils/live-portfolio";
 import { normalizeTradingSymbol } from "@/lib/utils/market-symbol-icon";
 import { resolveMarketWatchIcon } from "@/lib/utils/market-symbol-icon";
 import { formatTradingPrice } from "@/components/shared/trading-table-cells";
@@ -524,7 +524,7 @@ export default function DashboardPage() {
             payload.positions,
             { closedIds },
           ),
-          trades: payload.trades,
+          trades: mergeLiveTrades(current.trades, payload.trades),
         };
       });
     },
