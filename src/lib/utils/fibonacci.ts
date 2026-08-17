@@ -92,4 +92,3 @@ export function cloneFibonacciDrawing(drawing: FibonacciDrawing, offset: number)
     updatedAt: now,
   };
 }
-

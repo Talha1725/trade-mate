@@ -2322,6 +2322,7 @@ export function LightweightTradingChart({
         closedAt: null,
         pnl: position.floatingPnl,
         status: "OPEN",
+        exitStatus: null,
         source: position.source,
         notes: null,
         positionId: position.id,

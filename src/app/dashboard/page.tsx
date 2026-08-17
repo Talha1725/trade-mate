@@ -567,7 +567,7 @@ export default function DashboardPage() {
             <MarketWatchCard
               items={liveWatchlistItems}
               selectedItemId={selectedMarketId}
-              isLoading={isWishlistLoading || (accountWatchlistItems.length > 0 && liveWatchlistItems.length < accountWatchlistItems.length)}
+              isLoading={accountWatchlistItems.length > 0 && liveWatchlistItems.length < accountWatchlistItems.length}
               onItemSelect={setSelectedMarketId}
               onWatchlistToggle={toggleWishlistAsset}
             />
