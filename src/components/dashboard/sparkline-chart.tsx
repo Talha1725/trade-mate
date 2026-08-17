@@ -10,6 +10,8 @@ export function SparklineChart({
   showEndDot = true,
   palette,
   fromZero = false,
+  minValue,
+  maxValue,
 }: SparklineChartProps) {
   const values = data.map((point) => point.value);
 
@@ -20,6 +22,8 @@ export function SparklineChart({
         showEndDot={showEndDot}
         palette={palette}
         fromZero={fromZero}
+        minValue={minValue}
+        maxValue={maxValue}
         className="h-full w-full"
       />
     </div>

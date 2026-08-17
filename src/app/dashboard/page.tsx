@@ -21,6 +21,7 @@ import {
 } from "@/lib/utils/trader-data";
 import { getSupplementalQuoteSymbol } from "@/lib/utils/instrument-spec";
 import { mergeStablePositions } from "@/lib/utils/stable-positions";
+import { mergeLivePositions } from "@/lib/utils/live-portfolio";
 import { normalizeTradingSymbol } from "@/lib/utils/market-symbol-icon";
 import { resolveMarketWatchIcon } from "@/lib/utils/market-symbol-icon";
 import { formatTradingPrice } from "@/components/shared/trading-table-cells";
@@ -41,10 +42,7 @@ export default function DashboardPage() {
   const [ledger, setLedger] = React.useState<AccountLedgerResponse | null>(null);
   const [marketSnapshot, setMarketSnapshot] = React.useState<MarketSnapshotData | null>(null);
   const [marketChart, setMarketChart] = React.useState<MarketSnapshotChartSummary | null>(null);
-  const [livePositions, setLivePositions] = React.useState<PortfolioPosition[]>([]);
   const [liveQuotes, setLiveQuotes] = React.useState<Record<string, PriceSocketQuote>>({});
-  const openPositionOrderRef = React.useRef(new Map<string, number>());
-  const openPositionOrderCounterRef = React.useRef(0);
   const livePositionMissingCountsRef = React.useRef(new Map<string, number>());
 
   const selectedMarketId = useMarketSelectionStore((state) => state.selectedMarketId);
@@ -143,33 +141,21 @@ export default function DashboardPage() {
     };
   }, [resolvedAccountId, token]);
 
-  const dashboardData = snapshot ? buildDashboardData(snapshot, ledger ?? undefined, liveQuotePrices) : null;
+  const dashboardData = snapshot ? buildDashboardData(snapshot, ledger ?? undefined, liveQuotePrices, liveQuotes) : null;
   const liveSymbol = dashboardData?.positions[0]?.symbol;
   const openPortfolioPositions = React.useMemo(
     () => dashboardData?.positions.filter((position) => position.status === "OPEN") ?? [],
     [dashboardData?.positions],
   );
 
-  React.useEffect(() => {
-    if (openPortfolioPositions.length === 0) {
-      setLivePositions([]);
-      return;
-    }
-
-    for (const position of openPortfolioPositions) {
-      if (!openPositionOrderRef.current.has(position.id)) {
-        openPositionOrderRef.current.set(position.id, openPositionOrderCounterRef.current += 1);
-      }
-    }
-
-    const nextPositions = [...openPortfolioPositions].sort((left, right) => {
-      const leftOrder = openPositionOrderRef.current.get(left.id) ?? Number.MAX_SAFE_INTEGER;
-      const rightOrder = openPositionOrderRef.current.get(right.id) ?? Number.MAX_SAFE_INTEGER;
-      return leftOrder - rightOrder;
-    });
-
-    setLivePositions(nextPositions);
-  }, [openPortfolioPositions]);
+  const livePositions = React.useMemo(
+    () =>
+      [...openPortfolioPositions].sort((left, right) => {
+        const openedAtDifference = new Date(left.openedAt).getTime() - new Date(right.openedAt).getTime();
+        return openedAtDifference || left.id.localeCompare(right.id);
+      }),
+    [openPortfolioPositions],
+  );
   const openSymbols = React.useMemo(
     () =>
       Array.from(
@@ -188,14 +174,6 @@ export default function DashboardPage() {
     toggleWishlistAsset,
   } = useAccountWishlist(accountNumber, tradingAssets);
   const [liveWatchlistItems, setLiveWatchlistItems] = React.useState<MarketWatchItem[]>([]);
-
-  React.useEffect(() => {
-    setLiveWatchlistItems((current) => {
-      const currentById = new Map(current.map((item) => [item.id, item]));
-
-      return accountWatchlistItems.map((item) => currentById.get(item.id) ?? item);
-    });
-  }, [accountWatchlistItems]);
 
   const selectedWatchlistItem = liveWatchlistItems.find((item) => item.id === selectedMarketId);
   const selectedFilterAsset = tradingAssets.find((asset) => asset.id === selectedMarketId);
@@ -233,6 +211,25 @@ export default function DashboardPage() {
   );
 
   React.useEffect(() => {
+    const quotes = Object.values(liveQuotes);
+    const nextItems = accountWatchlistItems.flatMap((item) => {
+      const quote = resolveQuoteForSymbol(quotes, item.symbol);
+
+      if (!quote) {
+        return [];
+      }
+
+      return [{
+        ...item,
+        price: quote.price,
+        changePercent: quote.changePercent ?? 0,
+      }];
+    });
+
+    setLiveWatchlistItems(nextItems);
+  }, [accountWatchlistItems, liveQuotes, resolveQuoteForSymbol]);
+
+  React.useEffect(() => {
     if (!token || !chartSymbol) {
       return;
     }
@@ -249,7 +246,17 @@ export default function DashboardPage() {
           return;
         }
 
-        setMarketSnapshot(response.snapshot);
+        const initialSparkline = response.snapshot.sparkline.length > 0
+          ? [
+              ...response.snapshot.sparkline.slice(0, -1),
+              { value: response.snapshot.price },
+            ]
+          : [{ value: response.snapshot.price }];
+
+        setMarketSnapshot({
+          ...response.snapshot,
+          sparkline: initialSparkline,
+        });
         setMarketChart(response.chart);
       } catch {
         if (!isMounted) {
@@ -428,8 +435,8 @@ export default function DashboardPage() {
     [chartSymbol, compareSymbol, openSymbols, supplementalQuoteSymbols],
   );
   const watchlistMarketSymbols = React.useMemo(
-    () => liveWatchlistItems.map((item) => item.symbol),
-    [liveWatchlistItems],
+    () => accountWatchlistItems.map((item) => item.symbol),
+    [accountWatchlistItems],
   );
 
   const resolvePortfolioAccount = React.useCallback(
@@ -482,10 +489,9 @@ export default function DashboardPage() {
           account: {
             ...account,
           },
-          positions: mergeStablePositions(
+          positions: mergeLivePositions(
             current.positions,
             payload.positions,
-            livePositionMissingCountsRef.current,
             { closedIds },
           ),
         };
@@ -513,10 +519,9 @@ export default function DashboardPage() {
           account: {
             ...account,
           },
-          positions: mergeStablePositions(
+          positions: mergeLivePositions(
             current.positions,
             payload.positions,
-            livePositionMissingCountsRef.current,
             { closedIds },
           ),
           trades: payload.trades,
@@ -562,6 +567,7 @@ export default function DashboardPage() {
             <MarketWatchCard
               items={liveWatchlistItems}
               selectedItemId={selectedMarketId}
+              isLoading={isWishlistLoading || (accountWatchlistItems.length > 0 && liveWatchlistItems.length < accountWatchlistItems.length)}
               onItemSelect={setSelectedMarketId}
               onWatchlistToggle={toggleWishlistAsset}
             />

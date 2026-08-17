@@ -1,6 +1,7 @@
 import { ROUTES } from "@/constant/routes";
 import { get } from "@/lib/utils/api";
 import type { AuditLogEntry, AuditApiQuery, PaginatedAuditResponse } from "@/types/admin";
+import { formatNewYorkDateTime } from "@/lib/utils/date-time";
 
 const ACTION_MAP: Record<string, string> = {
   "Inject Trade": "admin.trade_create",
@@ -66,10 +67,7 @@ export const auditApi = {
 
       return {
         id: log.id,
-        timestamp: new Date(log.createdAt).toLocaleString("en-US", {
-          timeZone: "UTC",
-          timeZoneName: "short",
-        }),
+        timestamp: formatNewYorkDateTime(log.createdAt),
         adminId: log.adminId || "",
         adminEmail: log.admin?.email || "System",
         action: actionMapped,

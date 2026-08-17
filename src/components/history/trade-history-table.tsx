@@ -3,7 +3,6 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { ClockIcon } from "lucide-react";
-import { PiDownloadFill } from "react-icons/pi";
 import {
   flexRender,
   getCoreRowModel,
@@ -41,20 +40,10 @@ import { SIDEBAR_ICONS } from "@/lib/mock-data/sidebar-icons";
 import { cn } from "@/lib/utils";
 import type { TradeHistoryTableProps } from "@/types/trade-history";
 import type { Trade } from "@/types/trade";
+import { formatNewYorkDateTime } from "@/lib/utils/date-time";
 
 function formatHistoryDateTime(value: string | null | undefined) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-
-  return date.toLocaleString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "UTC",
-  });
+  return formatNewYorkDateTime(value);
 }
 
 function formatTradeDateTimes(trade: Trade) {
@@ -115,9 +104,6 @@ function TradeHistoryRowCells({ trade }: { trade: Trade }) {
       <TableCell className="px-4 py-2 text-sm font-medium text-white/60">
         {trade.stopLoss == null ? "-" : formatTradingPrice(trade.stopLoss, trade.symbol)}
       </TableCell>
-      <TableCell className="px-4 py-2 text-sm font-medium text-white/60">
-        {trade.exitStatus ? trade.exitStatus.charAt(0) + trade.exitStatus.slice(1).toLowerCase() : "-"}
-      </TableCell>
       <TableCell className="px-4 py-2">
         <TradingPnlValue value={trade.profit} />
       </TableCell>
@@ -134,17 +120,17 @@ function TradeHistoryRowCells({ trade }: { trade: Trade }) {
 const tradeHistoryColumns: ColumnDef<Trade>[] = [
   {
     accessorKey: "time",
-    header: ({ column }) => <SortableColumnHeader column={column} label="Open Date/Day" />,
+    header: ({ column }) => <SortableColumnHeader column={column} label="Open Date/Day" className="min-w-[260px] justify-start text-left" />,
     cell: ({ row }) => {
       const dates = formatTradeDateTimes(row.original);
-      return <span className="whitespace-nowrap">{dates.opened}</span>;
+      return <span className="inline-block min-w-[260px] whitespace-nowrap text-left">{dates.opened}</span>;
     },
   },
   {
     id: "closedAt",
     accessorFn: (trade) => trade.closedAt ?? "",
-    header: ({ column }) => <SortableColumnHeader column={column} label="Close Date/Day" />,
-    cell: ({ row }) => <span className="whitespace-nowrap">{formatTradeDateTimes(row.original).closed}</span>,
+    header: ({ column }) => <SortableColumnHeader column={column} label="Close Date/Day" className="min-w-[260px] justify-start text-left" />,
+    cell: ({ row }) => <span className="inline-block min-w-[260px] whitespace-nowrap text-left">{formatTradeDateTimes(row.original).closed}</span>,
   },
   {
     accessorKey: "symbol",
@@ -185,11 +171,6 @@ const tradeHistoryColumns: ColumnDef<Trade>[] = [
     accessorKey: "stopLoss",
     header: ({ column }) => <SortableColumnHeader column={column} label="SL" />,
     cell: ({ row }) => row.original.stopLoss == null ? "-" : formatTradingPrice(row.original.stopLoss, row.original.symbol),
-  },
-  {
-    accessorKey: "exitStatus",
-    header: ({ column }) => <SortableColumnHeader column={column} label="Exit Status" />,
-    cell: ({ row }) => row.original.exitStatus ? row.original.exitStatus.charAt(0) + row.original.exitStatus.slice(1).toLowerCase() : "-",
   },
   {
     accessorKey: "profit",
@@ -251,7 +232,6 @@ export function TradeHistoryTable({
       "Exit",
       "TP",
       "SL",
-      "Exit Status",
       "P&L",
       "Status",
     ];
@@ -268,7 +248,6 @@ export function TradeHistoryTable({
         trade.closeP,
         trade.takeProfit ?? "",
         trade.stopLoss ?? "",
-        trade.exitStatus ?? "",
         trade.profit.toFixed(2),
         trade.status ?? "Closed",
       ];
@@ -304,14 +283,14 @@ export function TradeHistoryTable({
             }
             label={`${stats.winRate}% win rate`}
           />
-          <button
+          {/* <button
             type="button"
             onClick={handleExport}
             className="inline-flex cursor-pointer items-center gap-2.5 rounded-[10px] border border-white/5 bg-linear-to-b from-white/7 to-white/3 px-4 py-2 text-sm font-medium text-white/60 transition-colors hover:bg-white/10"
           >
             <PiDownloadFill className="size-4 text-white" />
             <span className="text-white">Export</span>
-          </button>
+          </button> */}
         </div>
       </div>
 
@@ -329,10 +308,10 @@ export function TradeHistoryTable({
       ) : (
         <div className="space-y-4">
           <ResponsiveTableScroll>
-            <Table className="min-w-[1500px] table-fixed whitespace-nowrap">
+            <Table className="min-w-[1370px] table-fixed whitespace-nowrap">
               <colgroup>
-                <col className="w-[180px]" />
-                <col className="w-[180px]" />
+                <col className="w-[200px]" />
+                <col className="w-[200px]" />
                 <col className="w-[140px]" />
                 <col className="w-[100px]" />
                 <col className="w-[100px]" />
@@ -341,7 +320,6 @@ export function TradeHistoryTable({
                 <col className="w-[120px]" />
                 <col className="w-[120px]" />
                 <col className="w-[120px]" />
-                <col className="w-[130px]" />
                 <col className="w-[110px]" />
                 <col className="w-[100px]" />
               </colgroup>

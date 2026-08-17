@@ -29,7 +29,7 @@ export function TradingTableCard({
         <h3 className="text-base font-semibold text-white md:text-lg">{title}</h3>
 
         <div className="flex items-center gap-4">
-          <button
+          {/* <button
             type="button"
             onClick={onExport}
             disabled={!onExport}
@@ -37,7 +37,7 @@ export function TradingTableCard({
           >
             <PiDownloadFill className="size-4" />
             {exportLabel}
-          </button>
+          </button> */}
           <button
             type="button"
             onClick={onCloseAll}

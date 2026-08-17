@@ -18,7 +18,7 @@ function wave(progress: number, frequency: number, amplitude: number, phase = 0)
 }
 
 function roundDepth(value: number) {
-  return Math.round(value * 100) / 100;
+  return Number(value.toFixed(5));
 }
 
 function roundToTick(value: number, tickSize: number) {
@@ -37,9 +37,9 @@ function getSpreadPercent(assetCategory: string) {
 }
 
 function getTickSize(price: number) {
-  if (price >= 1000) return 0.5;
-  if (price >= 100) return 0.05;
-  if (price >= 1) return 0.01;
+  if (price >= 1000) return 0.1;
+  if (price >= 100) return 0.01;
+  if (price >= 1) return 0.001;
   return 0.0001;
 }
 
@@ -366,7 +366,7 @@ export function buildOrderDepthChart(
   candles: MarketCandle[],
   price: number,
 ): OrderDepthChartResponse {
-  const centerPrice = round(price, 2);
+  const centerPrice = round(price, 5);
   const { priceMin, priceMax } = buildDepthWindow(centerPrice);
 
   return {
@@ -389,6 +389,7 @@ export function generateEodhdOrderBook({
   latestPrice,
   bid,
   ask,
+  change,
   levels = 6,
 }: {
   symbol: string;
@@ -396,9 +397,10 @@ export function generateEodhdOrderBook({
   latestPrice: number;
   bid?: number | null;
   ask?: number | null;
+  change?: number | null;
   levels?: number;
 }): OrderBookSnapshot {
-  const midPrice = round(latestPrice, latestPrice >= 100 ? 2 : 4);
+  const midPrice = round(latestPrice, 5);
   const tickSize = getTickSize(midPrice);
   const spreadPercent = getSpreadPercent(assetCategory);
   const fallbackBid = midPrice * (1 - spreadPercent / 200);
@@ -412,7 +414,13 @@ export function generateEodhdOrderBook({
     midPrice,
     bestBid,
     bestAsk,
-    midDirection: latestPrice >= (bestBid + bestAsk) / 2 ? "up" : "down",
+    midDirection: change != null
+      ? change >= 0
+        ? "up"
+        : "down"
+      : latestPrice >= (bestBid + bestAsk) / 2
+        ? "up"
+        : "down",
     spread,
     spreadPercent: spreadPercentValue,
     asks: buildSideRows({
