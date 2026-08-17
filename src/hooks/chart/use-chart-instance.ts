@@ -70,6 +70,7 @@ export function useChartInstance(options: ChartInstanceOptions) {
         borderColor: "rgba(255,255,255,0.08)",
         timeVisible: true,
         secondsVisible: false,
+        rightOffset: 4,
       },
       crosshair: {
         mode: CrosshairMode.Normal,
@@ -102,6 +103,7 @@ export function useChartInstance(options: ChartInstanceOptions) {
         borderColor: "rgba(255,255,255,0.08)",
         timeVisible: true,
         secondsVisible: false,
+        rightOffset: 4,
       },
       crosshair: {
         mode: CrosshairMode.Normal,
@@ -413,6 +415,8 @@ export function useChartInstance(options: ChartInstanceOptions) {
 
       mainChart.timeScale().setVisibleLogicalRange({ from, to });
       subChart.timeScale().setVisibleLogicalRange({ from, to });
+      mainChart.timeScale().scrollToRealTime();
+      subChart.timeScale().scrollToRealTime();
       initialViewKeyRef.current = viewKey;
     }
     window.requestAnimationFrame(() => overlayRevision((current) => current + 1));
