@@ -1,5 +1,8 @@
 import type { PositionSummary } from "@/types/dashboard";
 import type { RecentActivityItem } from "@/types/dashboard";
+import type { PortfolioPosition, PortfolioTrade } from "@/types/dashboard";
+import type { ChartLiveQuote } from "@/types/eodhd";
+import type { TradeMarker } from "@/types/chart/trade-marker";
 import type {
   TradingFilterBarAsset,
   TradingFilterBarOhlcv,
@@ -20,7 +23,15 @@ export type TradingChartProps = {
 export type LiveTradingViewProps = {
   symbol?: string;
   compareSymbol?: string | null;
-  interval?: string;
+  timeframe?: TradingTimeframe;
+  liveQuote?: ChartLiveQuote | null;
+  compareLiveQuote?: ChartLiveQuote | null;
+  trades?: PortfolioTrade[];
+  tradePositions?: PortfolioPosition[];
+  markers?: TradeMarker[];
+  showTradeMarkers?: boolean;
+  onTradeMarkerClick?: (marker: TradeMarker) => void;
+  className?: string;
   positions?: PositionSummary[];
   recentActivity?: RecentActivityItem[];
   filterAssets?: TradingFilterBarAsset[];

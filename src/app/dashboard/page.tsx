@@ -9,23 +9,19 @@ import { MarketWatchCard } from "@/components/dashboard/market-watch-card";
 import { OpenPositionsStripCard } from "@/components/dashboard/open-positions-strip-card";
 import { TradingFilterBar } from "@/components/dashboard/trading-filter-bar";
 import { PageHeader } from "@/components/page-header";
-
 import { dashboardApi } from "@/lib/services/dashboard.api";
 import { marketApi } from "@/lib/services/market.api";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useMarketSelectionStore } from "@/lib/stores/market-selection-store";
 import { useSelectedAccountStore } from "@/lib/stores/account-store";
-import {
-  mapTimeframeToMarketInterval,
-  mapTimeframeToTradingViewInterval,
-} from "@/lib/utils/trading-view";
+import { mapTimeframeToMarketInterval } from "@/lib/utils/trading-view";
 import {
   buildDashboardData,
   mapPortfolioPositionToPortfolioRow,
 } from "@/lib/utils/trader-data";
 import { getSupplementalQuoteSymbol } from "@/lib/utils/instrument-spec";
 import { mergeStablePositions } from "@/lib/utils/stable-positions";
-import { mergeLivePositions } from "@/lib/utils/live-portfolio";
+import { mergeLivePositions, mergeLiveTrades } from "@/lib/utils/live-portfolio";
 import { normalizeTradingSymbol } from "@/lib/utils/market-symbol-icon";
 import { resolveMarketWatchIcon } from "@/lib/utils/market-symbol-icon";
 import { formatTradingPrice } from "@/components/shared/trading-table-cells";
@@ -176,7 +172,6 @@ export default function DashboardPage() {
   const {
     watchlistItems: accountWatchlistItems,
     toggleWishlistAsset,
-    isLoading: isWishlistLoading,
   } = useAccountWishlist(accountNumber, tradingAssets);
   const [liveWatchlistItems, setLiveWatchlistItems] = React.useState<MarketWatchItem[]>([]);
 
@@ -191,7 +186,6 @@ export default function DashboardPage() {
     ? tradingAssets.find((asset) => asset.id === compareAssetId)
     : null;
   const compareSymbol = compareWatchlistItem?.symbol ?? compareFilterAsset?.symbol ?? null;
-  const chartInterval = mapTimeframeToTradingViewInterval(timeframe);
   const marketInterval = mapTimeframeToMarketInterval(timeframe);
 
   React.useEffect(() => {
@@ -207,6 +201,14 @@ export default function DashboardPage() {
       quotes.find((quote) => normalizedSymbols.has(normalizeTradingSymbol(quote.symbol))) ?? null
     );
   }, []);
+  const chartLiveQuote = React.useMemo(
+    () => resolveQuoteForSymbol(Object.values(liveQuotes), chartSymbol),
+    [chartSymbol, liveQuotes, resolveQuoteForSymbol],
+  );
+  const compareLiveQuote = React.useMemo(
+    () => (compareSymbol ? resolveQuoteForSymbol(Object.values(liveQuotes), compareSymbol) : null),
+    [compareSymbol, liveQuotes, resolveQuoteForSymbol],
+  );
 
   React.useEffect(() => {
     const quotes = Object.values(liveQuotes);
@@ -428,9 +430,9 @@ export default function DashboardPage() {
   const subscriptionMarketSymbols = React.useMemo(
     () =>
       Array.from(
-        new Set([chartSymbol, ...openSymbols, ...supplementalQuoteSymbols].filter(Boolean) as string[]),
+        new Set([chartSymbol, compareSymbol, ...openSymbols, ...supplementalQuoteSymbols].filter(Boolean) as string[]),
       ),
-    [chartSymbol, openSymbols, supplementalQuoteSymbols],
+    [chartSymbol, compareSymbol, openSymbols, supplementalQuoteSymbols],
   );
   const watchlistMarketSymbols = React.useMemo(
     () => accountWatchlistItems.map((item) => item.symbol),
@@ -522,7 +524,7 @@ export default function DashboardPage() {
             payload.positions,
             { closedIds },
           ),
-          trades: payload.trades,
+          trades: mergeLiveTrades(current.trades, payload.trades),
         };
       });
     },
@@ -553,7 +555,11 @@ export default function DashboardPage() {
             <LiveTradingView
               symbol={chartSymbol}
               compareSymbol={compareSymbol}
-              interval={chartInterval}
+              timeframe={timeframe}
+              liveQuote={chartLiveQuote}
+              compareLiveQuote={compareLiveQuote}
+              trades={ledger?.trades ?? []}
+              tradePositions={snapshot?.positions ?? []}
             />
           </div>
 
@@ -561,7 +567,7 @@ export default function DashboardPage() {
             <MarketWatchCard
               items={liveWatchlistItems}
               selectedItemId={selectedMarketId}
-              isLoading={isWishlistLoading || (accountWatchlistItems.length > 0 && liveWatchlistItems.length < accountWatchlistItems.length)}
+              isLoading={accountWatchlistItems.length > 0 && liveWatchlistItems.length < accountWatchlistItems.length}
               onItemSelect={setSelectedMarketId}
               onWatchlistToggle={toggleWishlistAsset}
             />
