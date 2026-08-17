@@ -81,7 +81,8 @@ export function ChartToolbar({
         const Icon = item.icon;
         const isMagnet = item.id === "magnet";
         const isActive = isMagnet ? magnetMode !== "off" : item.id === activeTool;
-        const itemLabel = isMagnet ? `Magnet: ${magnetMode[0].toUpperCase()}${magnetMode.slice(1)}` : item.label;
+        const safeMagnetMode = magnetMode ?? "off";
+        const itemLabel = isMagnet ? `Magnet: ${safeMagnetMode[0].toUpperCase()}${safeMagnetMode.slice(1)}` : item.label;
 
         return (
           <button

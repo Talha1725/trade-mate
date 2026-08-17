@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "check:lockfiles": "node scripts/check-lockfiles.mjs",
     "prepare": "husky"
   },
@@ -50,6 +52,7 @@
     "eslint-config-next": "16.2.9",
     "husky": "^9.1.7",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.7"
   }
 }
