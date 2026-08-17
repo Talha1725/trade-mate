@@ -4,7 +4,7 @@ import * as React from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TradeMarkerOverlay } from "@/components/dashboard/trade-marker-overlay";
-import { ChartToolbarPanel } from "./chart-toolbar-panel";
+// import { ChartToolbarPanel } from "./chart-toolbar-panel";
 import { ChartIndicatorPanel } from "./chart-indicator-panel";
 import { formatTrendlinePrice } from "@/lib/utils/chart/formatters";
 import type { FibonacciDrawing } from "@/types/lightweight-trading-chart";
@@ -21,7 +21,8 @@ export function ChartShell({ context }: { context: ChartShellContext }) {
       )}
     >
       <div className="flex min-h-[560px] gap-x-2 h-full">
-        <ChartToolbarPanel
+        {/* Temporarily hidden at the user's request; restore when the chart sidebar is needed again. */}
+        {/* <ChartToolbarPanel
           activeTool={activeTool}
           magnetMode={magnetMode}
           enabledIndicators={enabledIndicators}
@@ -51,7 +52,7 @@ export function ChartShell({ context }: { context: ChartShellContext }) {
           onReset={resetView}
           onUndo={undoDrawing}
           onRedo={redoDrawings.length > 0 ? redoDrawing : () => undefined}
-        />
+        /> */}
 
         <div className="relative flex min-w-0 flex-1 flex-col h-full rounded-[12px] border-[1.5px] border-white/20 bg-linear-to-t from-white/7 to-white/5">
           {isChartLoading ? (

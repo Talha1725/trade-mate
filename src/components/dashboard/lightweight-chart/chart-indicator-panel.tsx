@@ -3,24 +3,10 @@
 import * as React from "react";
 import { Settings2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DEFAULT_VWAP_CALCULATION, type VwapCalculationSettings, type VwapPoint } from "@/lib/utils/chart-indicators";
-import type { ChartIndicatorId } from "@/types/lightweight-trading-chart";
+import { DEFAULT_VWAP_CALCULATION } from "@/lib/utils/chart-indicators";
 import { VWAP_BAND_COLORS } from "@/constants/chart/lightweight-chart";
 import { formatChartPrice } from "@/lib/utils/chart/formatters";
-
-type ChartIndicatorPanelProps = {
-  enabledIndicators: ChartIndicatorId[];
-  indicatorPeriods: { ema: number };
-  setIndicatorPeriods: React.Dispatch<React.SetStateAction<{ ema: number }>>;
-  vwapSettings: VwapCalculationSettings;
-  setVwapSettings: React.Dispatch<React.SetStateAction<VwapCalculationSettings>>;
-  latestVwapPoint: VwapPoint | null;
-  symbol: string;
-  isVwapSettingsOpen: boolean;
-  setIsVwapSettingsOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  vwapSettingsTab: "inputs" | "style" | "visibility";
-  setVwapSettingsTab: React.Dispatch<React.SetStateAction<"inputs" | "style" | "visibility">>;
-};
+import type { ChartIndicatorPanelProps } from "@/types/chart/chart-component-props";
 
 export function ChartIndicatorPanel({ enabledIndicators, indicatorPeriods, setIndicatorPeriods, vwapSettings, setVwapSettings, latestVwapPoint, symbol, isVwapSettingsOpen, setIsVwapSettingsOpen, vwapSettingsTab, setVwapSettingsTab }: ChartIndicatorPanelProps) {
   return (

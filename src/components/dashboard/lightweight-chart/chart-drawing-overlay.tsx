@@ -5,20 +5,7 @@ import { calculateFibPrice, formatFibonacciLevelLabel } from "@/lib/utils/fibona
 import { formatLegendValue, formatMeasurementDuration, formatMeasurementVolume, formatSignedLegendValue, formatTrendlinePrice, formatTrendlineTime } from "@/lib/utils/chart/formatters";
 import { clipTrendlineSegmentToPlot, getExtendedTrendlinePoints, getTrendlineStrokeDash } from "@/lib/utils/chart/geometry";
 import type { AnyChartDrawing, FibonacciDrawing } from "@/types/lightweight-trading-chart";
-
-type DrawingRendererContext = {
-  activeTool: string;
-  displayCandles: Array<{ time: number; volume?: number }>;
-  getChartPoint: (event: React.PointerEvent<HTMLElement>) => { time: number; price: number; logicalIndex?: number } | null;
-  selectedDrawingId: string | null;
-  toPixelPoint: (point: { time: number; price: number }) => { x: number; y: number } | null;
-  drawingOverlayRef: React.RefObject<SVGSVGElement | null>;
-  mainChartRef: React.MutableRefObject<{ timeScale: () => { width: () => number } } | null>;
-  candleSeriesRef: React.MutableRefObject<{ priceToCoordinate: (price: number) => number | null } | null>;
-  draggingTextRef: React.MutableRefObject<{ id: string; start: unknown; originalPoint: unknown } | null>;
-  setSelectedDrawingId: (id: string | null) => void;
-  setTextEditor: (value: { point: { time: number; price: number }; value: string; pixel: { x: number; y: number }; editingId?: string } | null) => void;
-};
+import type { DrawingRendererContext } from "@/types/chart/chart-component-props";
 
 export function useChartDrawingRenderer(context: DrawingRendererContext) {
   const { activeTool, displayCandles, getChartPoint, selectedDrawingId, toPixelPoint, drawingOverlayRef, mainChartRef, candleSeriesRef, draggingTextRef, setSelectedDrawingId, setTextEditor } = context;
