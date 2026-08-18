@@ -40,6 +40,45 @@ export function SymbolSelector({
   const selectedSymbol = useSelectedSymbol();
   const setSelectedSymbol = useSetSelectedSymbol();
   const [open, setOpen] = React.useState(false);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+  const scrollPositionsRef = React.useRef<Array<{ element: HTMLElement; top: number; left: number }>>([]);
+
+  const captureScrollPositions = React.useCallback(() => {
+    const positions: Array<{ element: HTMLElement; top: number; left: number }> = [];
+    const documentScroller = document.scrollingElement;
+
+    if (documentScroller) {
+      positions.push({
+        element: documentScroller as HTMLElement,
+        top: documentScroller.scrollTop,
+        left: documentScroller.scrollLeft,
+      });
+    }
+
+    let element = triggerRef.current?.parentElement ?? null;
+
+    while (element) {
+      if (element.scrollHeight > element.clientHeight || element.scrollWidth > element.clientWidth) {
+        positions.push({ element, top: element.scrollTop, left: element.scrollLeft });
+      }
+      element = element.parentElement;
+    }
+
+    scrollPositionsRef.current = positions;
+  }, []);
+
+  const restoreScrollPositions = React.useCallback(() => {
+    const restore = () => {
+      for (const position of scrollPositionsRef.current) {
+        position.element.scrollTop = position.top;
+        position.element.scrollLeft = position.left;
+      }
+    };
+
+    restore();
+    window.requestAnimationFrame(restore);
+    window.setTimeout(restore, 0);
+  }, []);
 
   // Wishlist integration
   const resolvedAccountNumber = useResolvedAccountNumber(undefined);
@@ -69,8 +108,17 @@ export function SymbolSelector({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
+        ref={triggerRef}
+        type="button"
         role="combobox"
         aria-expanded={open}
+        onMouseDown={(event) => {
+          captureScrollPositions();
+          // Prevent the browser from scrolling the page to the trigger when
+          // the popover restores focus after opening.
+          event.preventDefault();
+        }}
+        onClick={restoreScrollPositions}
         className={cn(
           "flex h-9 cursor-pointer items-center justify-between gap-2 rounded-lg border border-white/20 bg-neutral-900 bg-linear-to-b from-[#6E6E6E1A] to-[#13131505] px-3 text-sm font-medium text-white shadow-none hover:border-primary hover:bg-white/15 hover:text-white",
           className,
