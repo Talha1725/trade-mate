@@ -21,15 +21,8 @@ import { useResolvedAccountNumber } from "@/hooks/use-resolved-account-number";
 import { cn } from "@/lib/utils";
 import type { AssetCategory } from "@/types/asset";
 import type { TradingFilterBarAsset } from "@/types/trading-filter-bar";
-
-const CATEGORY_ORDER: AssetCategory[] = [ "FOREX", "CRYPTO", "COMMODITIES", "INDICES", "STOCK"];
-const CATEGORY_LABELS: Record<AssetCategory, string> = {
-  FOREX: "Forex",
-  CRYPTO: "Crypto",
-  COMMODITIES: "Commodities",
-  INDICES: "Indices",
-  STOCK: "Stocks",
-};
+import { SYMBOL_CATEGORY_LABELS, SYMBOL_CATEGORY_ORDER } from "@/constants/symbol-selector";
+import type { SymbolSelectorProps } from "@/types/symbol-selector";
 
 /**
  * Searchable, category-grouped symbol selector backed by the shared
@@ -39,10 +32,8 @@ const CATEGORY_LABELS: Record<AssetCategory, string> = {
 export function SymbolSelector({
   className,
   contentClassName,
-}: {
-  className?: string;
-  contentClassName?: string;
-}) {
+  triggerLabel,
+}: SymbolSelectorProps) {
   // Keep the store's known assets in sync wherever this selector is mounted.
   useSyncedTradingAssets();
   const { data: assets = [] } = useAssets();
@@ -65,7 +56,7 @@ export function SymbolSelector({
       byCategory.set(asset.category, list);
     }
 
-    return CATEGORY_ORDER.filter((category) => byCategory.has(category)).map((category) => ({
+    return SYMBOL_CATEGORY_ORDER.filter((category) => byCategory.has(category)).map((category) => ({
       category,
       items: byCategory.get(category)!,
     }));
@@ -86,14 +77,14 @@ export function SymbolSelector({
         )}
       >
         <span className="flex min-w-0 items-center gap-2">
-          {selectedAsset ? (
+          {!triggerLabel && selectedAsset ? (
             <AssetIcon symbol={selectedAsset.symbol} label={selectedAsset.label} size={20} />
           ) : null}
           <span className="truncate">
-            {selectedAsset?.label ?? selectedSymbol ?? "Select symbol"}
+            {triggerLabel ?? selectedAsset?.label ?? selectedSymbol ?? "Select symbol"}
           </span>
         </span>
-        <ChevronsUpDown className="size-4 shrink-0 opacity-60" />
+        {!triggerLabel ? <ChevronsUpDown className="size-4 shrink-0 opacity-60" /> : null}
       </PopoverTrigger>
       <PopoverContent
         align="start"
@@ -109,7 +100,7 @@ export function SymbolSelector({
           <CommandList className="max-h-[250px]">
             <CommandEmpty>No symbol found.</CommandEmpty>
             {groups.map(({ category, items }) => (
-              <CommandGroup key={category} heading={CATEGORY_LABELS[category]}>
+              <CommandGroup key={category} heading={SYMBOL_CATEGORY_LABELS[category]}>
                 {items.map((asset) => (
                   <CommandItem
                     key={asset.id}

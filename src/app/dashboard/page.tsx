@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
 import { LiveTradingView } from "@/components/common/live-trading-view";
@@ -11,6 +12,8 @@ import { TradingFilterBar } from "@/components/dashboard/trading-filter-bar";
 import { PageHeader } from "@/components/page-header";
 import { dashboardApi } from "@/lib/services/dashboard.api";
 import { marketApi } from "@/lib/services/market.api";
+import { terminalApi } from "@/lib/services/terminal.api";
+import { ordersApi } from "@/lib/services/orders.api";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useMarketSelectionStore } from "@/lib/stores/market-selection-store";
 import { useSelectedAccountStore } from "@/lib/stores/account-store";
@@ -33,6 +36,7 @@ import type { PortfolioPosition } from "@/types/dashboard";
 import type { PriceSocketPortfolioMessage, PriceSocketQuote } from "@/types";
 import { usePriceStream } from "@/hooks/use-price-stream";
 import { useAccountWishlist } from "@/hooks/use-account-wishlist";
+import { useEodhdMarketQuotes } from "@/hooks/use-eodhd-market-quotes";
 import { useResolvedAccountNumber } from "@/hooks/use-resolved-account-number";
 import { useSyncedTradingAssets } from "@/hooks/use-synced-trading-assets";
 import { getTradingSymbolAliases } from "@/lib/utils/market-symbol-icon";
@@ -44,6 +48,7 @@ export default function DashboardPage() {
   const [marketChart, setMarketChart] = React.useState<MarketSnapshotChartSummary | null>(null);
   const [liveQuotes, setLiveQuotes] = React.useState<Record<string, PriceSocketQuote>>({});
   const livePositionMissingCountsRef = React.useRef(new Map<string, number>());
+  const locallyClosedPositionIdsRef = React.useRef(new Set<string>());
 
   const selectedMarketId = useMarketSelectionStore((state) => state.selectedMarketId);
   const setSelectedMarketId = useMarketSelectionStore((state) => state.setSelectedMarketId);
@@ -96,7 +101,12 @@ export default function DashboardPage() {
 
         setSnapshot((current) => {
           if (!current) {
-            return accountSnapshot;
+            return {
+              ...accountSnapshot,
+              positions: accountSnapshot.positions.filter(
+                (position) => !locallyClosedPositionIdsRef.current.has(position.id),
+              ),
+            };
           }
 
           return {
@@ -105,7 +115,7 @@ export default function DashboardPage() {
               current.positions,
               accountSnapshot.positions,
               livePositionMissingCountsRef.current,
-            ),
+            ).filter((position) => !locallyClosedPositionIdsRef.current.has(position.id)),
           };
         });
 
@@ -117,7 +127,12 @@ export default function DashboardPage() {
 
         setLedger((current) => {
           if (!current) {
-            return accountLedger;
+            return {
+              ...accountLedger,
+              positions: accountLedger.positions.filter(
+                (position) => !locallyClosedPositionIdsRef.current.has(position.id),
+              ),
+            };
           }
 
           return {
@@ -126,7 +141,7 @@ export default function DashboardPage() {
               current.positions,
               accountLedger.positions,
               livePositionMissingCountsRef.current,
-            ),
+            ).filter((position) => !locallyClosedPositionIdsRef.current.has(position.id)),
           };
         });
       } catch {
@@ -174,6 +189,14 @@ export default function DashboardPage() {
     toggleWishlistAsset,
   } = useAccountWishlist(accountNumber, tradingAssets);
   const [liveWatchlistItems, setLiveWatchlistItems] = React.useState<MarketWatchItem[]>([]);
+  const watchlistSymbols = React.useMemo(
+    () => accountWatchlistItems.map((item) => item.symbol),
+    [accountWatchlistItems],
+  );
+  const { data: watchlistQuoteResponse } = useEodhdMarketQuotes(watchlistSymbols, {
+    enabled: Boolean(token && watchlistSymbols.length > 0),
+    refetchInterval: 15_000,
+  });
 
   const selectedWatchlistItem = liveWatchlistItems.find((item) => item.id === selectedMarketId);
   const selectedFilterAsset = tradingAssets.find((asset) => asset.id === selectedMarketId);
@@ -186,6 +209,7 @@ export default function DashboardPage() {
     ? tradingAssets.find((asset) => asset.id === compareAssetId)
     : null;
   const compareSymbol = compareWatchlistItem?.symbol ?? compareFilterAsset?.symbol ?? null;
+
   const marketInterval = mapTimeframeToMarketInterval(timeframe);
 
   React.useEffect(() => {
@@ -213,21 +237,28 @@ export default function DashboardPage() {
   React.useEffect(() => {
     const quotes = Object.values(liveQuotes);
     const nextItems = accountWatchlistItems.flatMap((item) => {
-      const quote = resolveQuoteForSymbol(quotes, item.symbol);
+      const liveQuote = resolveQuoteForSymbol(quotes, item.symbol);
+      const eodhdQuote = Object.values(watchlistQuoteResponse?.quotes ?? {}).find(
+        (quote) => normalizeTradingSymbol(quote.symbol) === normalizeTradingSymbol(item.symbol),
+      );
 
-      if (!quote) {
+      if (!liveQuote && !eodhdQuote) {
         return [];
       }
 
       return [{
         ...item,
-        price: quote.price,
-        changePercent: quote.changePercent ?? 0,
+        price: liveQuote?.price ?? eodhdQuote?.price ?? item.price,
+        change: liveQuote?.change ?? eodhdQuote?.change ?? null,
+        changePercent: liveQuote?.changePercent ?? eodhdQuote?.changePercent ?? item.changePercent,
+        high: eodhdQuote?.high ?? null,
+        low: eodhdQuote?.low ?? null,
+        volume: eodhdQuote?.volume ?? null,
       }];
     });
 
     setLiveWatchlistItems(nextItems);
-  }, [accountWatchlistItems, liveQuotes, resolveQuoteForSymbol]);
+  }, [accountWatchlistItems, liveQuotes, resolveQuoteForSymbol, watchlistQuoteResponse]);
 
   React.useEffect(() => {
     if (!token || !chartSymbol) {
@@ -344,6 +375,11 @@ export default function DashboardPage() {
       entryLabel: `Entry ${entryLabelPrice}`,
       trend: buildPositionTrend(entryPrice, currentPrice, side),
       palette: portfolioRow.pnl >= 0 ? "profit" : "loss",
+      entryPrice,
+      markPrice: Number.isFinite(currentPrice) ? currentPrice : null,
+      stopLoss: position.stopLoss == null ? null : Number(position.stopLoss),
+      takeProfit: position.takeProfit == null ? null : Number(position.takeProfit),
+      lots,
     };
   }
 
@@ -351,6 +387,24 @@ export default function DashboardPage() {
     () => livePositions.slice(0, 4).map(mapPositionToOpenStripItem),
     [livePositions, liveQuotes],
   );
+
+  const handleClosePosition = React.useCallback(async (positionId: string) => {
+    if (!token) return;
+    const result = await terminalApi.closeTrade({ positionId }, token);
+    locallyClosedPositionIdsRef.current.add(positionId);
+    setSnapshot((current) => current ? { ...current, account: result.account, positions: current.positions.filter((position) => position.id !== positionId) } : current);
+    setLedger((current) => current ? { ...current, account: result.account, positions: current.positions.filter((position) => position.id !== positionId) } : current);
+    toast.success("Position closed.");
+  }, [token]);
+
+  const handleModifyProtection = React.useCallback(async (input: { positionId: string; stopLoss: number | null; takeProfit: number | null }) => {
+    if (!token) return { status: "FAILED" as const };
+    const result = await ordersApi.modifyProtection(input, token);
+    setSnapshot((current) => current ? { ...current, positions: current.positions.map((position) => position.id === input.positionId ? { ...position, stopLoss: input.stopLoss == null ? null : String(input.stopLoss), takeProfit: input.takeProfit == null ? null : String(input.takeProfit) } : position) } : current);
+    setLedger((current) => current ? { ...current, positions: current.positions.map((position) => position.id === input.positionId ? { ...position, stopLoss: input.stopLoss == null ? null : String(input.stopLoss), takeProfit: input.takeProfit == null ? null : String(input.takeProfit) } : position) } : current);
+    toast.success("Trade protection updated.");
+    return { status: result.sync.status };
+  }, [token]);
 
   const handleMarketQuotes = React.useCallback(
     (quotes: PriceSocketQuote[]) => {
@@ -400,6 +454,7 @@ export default function DashboardPage() {
           return {
             ...item,
             price: quote.price,
+            change: quote.change ?? item.change ?? null,
             changePercent: quote.changePercent ?? item.changePercent,
           };
         }),
@@ -473,6 +528,9 @@ export default function DashboardPage() {
           .filter((trade) => trade.status === "CLOSED" && trade.positionId)
           .map((trade) => trade.positionId as string),
       );
+      for (const positionId of locallyClosedPositionIdsRef.current) {
+        closedIds.add(positionId);
+      }
 
       setSnapshot((current) => {
         if (!current) {
@@ -480,7 +538,9 @@ export default function DashboardPage() {
             account: {
               ...account,
             },
-            positions: payload.positions,
+            positions: payload.positions.filter(
+              (position) => !locallyClosedPositionIdsRef.current.has(position.id),
+            ),
           };
         }
 
@@ -503,7 +563,9 @@ export default function DashboardPage() {
             account: {
               ...account,
             },
-            positions: payload.positions,
+            positions: payload.positions.filter(
+              (position) => !locallyClosedPositionIdsRef.current.has(position.id),
+            ),
             trades: payload.trades,
             tradePagination: {
               page: 1,
@@ -532,7 +594,7 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
-      <div className="flex w-full flex-col gap-6">
+      <div className="flex w-full flex-col gap-4">
         <PageHeader
           title="Dashboard"
           description="Account overview, equity curve, and trading performance."
@@ -550,8 +612,8 @@ export default function DashboardPage() {
           onCompareChange={setCompareAssetId}
         />
 
-        <div className="grid grid-cols-12 gap-6">
-          <div className="col-span-12 xl:col-span-8">
+        <div className="grid grid-cols-12 items-start gap-4 xl:gap-5">
+          <div className="col-span-12 flex min-w-0 flex-col gap-4 xl:col-span-7">
             <LiveTradingView
               symbol={chartSymbol}
               compareSymbol={compareSymbol}
@@ -560,26 +622,33 @@ export default function DashboardPage() {
               compareLiveQuote={compareLiveQuote}
               trades={ledger?.trades ?? []}
               tradePositions={snapshot?.positions ?? []}
+              className="h-[420px] min-h-0 xl:h-[560px]"
             />
-          </div>
-
-          <div className="col-span-12 flex flex-col gap-6 xl:col-span-4">
             <MarketWatchCard
               items={liveWatchlistItems}
               selectedItemId={selectedMarketId}
               isLoading={accountWatchlistItems.length > 0 && liveWatchlistItems.length < accountWatchlistItems.length}
               onItemSelect={setSelectedMarketId}
               onWatchlistToggle={toggleWishlistAsset}
+              className="min-h-[220px] xl:h-[340px]"
+            />
+          </div>
+
+          <div className="col-span-12 flex min-w-0 flex-col gap-4 xl:col-span-5">
+            <OpenPositionsStripCard
+              items={openPositionItems}
+              className="order-2 h-[420px] min-h-0 xl:order-1 xl:h-[560px]"
+              onClosePosition={handleClosePosition}
+              onModifyProtection={handleModifyProtection}
             />
             <MarketSnapshotCard
               data={marketSnapshot ?? undefined}
               symbol={chartSymbol}
               assetClass={selectedFilterAsset?.category ?? null}
+              className="order-1 xl:order-2 xl:h-[340px]"
             />
           </div>
         </div>
-
-        <OpenPositionsStripCard items={openPositionItems} />
       </div>
     </AppShell>
   );

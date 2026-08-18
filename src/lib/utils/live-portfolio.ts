@@ -20,6 +20,10 @@ export function mergeLivePositions(
   }
 
   for (const position of updates) {
+    if (options.closedIds?.has(position.id)) {
+      continue;
+    }
+
     if (position.status === "CLOSED") {
       positionsById.delete(position.id);
       continue;

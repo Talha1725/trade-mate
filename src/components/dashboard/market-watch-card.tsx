@@ -1,14 +1,13 @@
 "use client";
 
 import { Star, Loader2 } from "lucide-react";
-import { useState } from "react";
 
 import { AssetIcon } from "@/components/shared/asset-icon";
+import { SymbolSelector } from "@/components/symbol-selector";
 import { formatTradingPrice } from "@/components/shared/trading-table-cells";
 import {
   mockMarketNews,
   mockMarketSignals,
-  MARKET_WATCH_TABS,
 } from "@/lib/mock-data/market-watch-card";
 import { cn } from "@/lib/utils";
 import type {
@@ -16,7 +15,7 @@ import type {
   MarketNewsItem,
   MarketSignalItem,
   MarketWatchItem,
-  MarketWatchTab,
+  WatchlistRowProps,
 } from "@/types/market-watch-card";
 
 function formatPercent(value: number) {
@@ -24,30 +23,38 @@ function formatPercent(value: number) {
   return `${prefix}${value.toFixed(2)}%`;
 }
 
+function formatValue(value: number | null | undefined, symbol: string) {
+  return value == null ? "—" : formatTradingPrice(value, symbol);
+}
+
+function formatVolume(value: number | null | undefined) {
+  if (value == null) return "—";
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(2)}K`;
+  return value.toLocaleString("en-US");
+}
+
 function WatchlistRow({
   item,
   isSelected,
   onSelect,
   onWatchlistToggle,
-}: {
-  item: MarketWatchItem;
-  isSelected: boolean;
-  onSelect?: () => void;
-  onWatchlistToggle?: (itemId: string) => void;
-}) {
+}: WatchlistRowProps) {
   const isPositive = item.changePercent >= 0;
 
   return (
     <div
       className={cn(
-        "flex w-full items-center gap-2 rounded-[10px] px-3.5 py-1.5 transition-colors",
-        isSelected ? "btn-green" : "hover:bg-white/5",
+        "grid w-full grid-cols-[1.6fr_1fr_1fr_1fr_1fr_1fr_0.9fr_24px] items-center gap-3 rounded-[10px] border px-3 py-2 transition-colors",
+        isSelected
+          ? "border-primary/70"
+          : "border-transparent hover:bg-white/5",
       )}
     >
       <button
         type="button"
         onClick={onSelect}
-        className="flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2.5 text-left"
+        className="flex min-w-0 cursor-pointer items-center gap-2.5 text-left"
       >
         <span className="flex min-w-0 items-center gap-2.5">
           <AssetIcon symbol={item.symbol} label={item.name} size={32} />
@@ -59,20 +66,20 @@ function WatchlistRow({
           </span>
         </span>
 
-        <span className="shrink-0 text-right">
-          <span className="block tracking-tight text-sm font-medium text-white md:text-base">
-            {formatTradingPrice(item.price, item.symbol)}
-          </span>
-          <span
-            className={cn(
-              "block text-xs font-medium md:text-sm",
-              isPositive ? "text-primary" : "text-destructive",
-            )}
-          >
-            {formatPercent(item.changePercent)}
-          </span>
-        </span>
       </button>
+
+      <span className="text-left text-sm font-medium text-white">
+        {formatTradingPrice(item.price, item.symbol)}
+      </span>
+      <span className={cn("text-left text-sm font-medium", isPositive ? "text-primary" : "text-destructive")}>
+        {item.change == null ? "—" : `${item.change >= 0 ? "+" : "-"}${Math.abs(item.change).toFixed(5)}`}
+      </span>
+      <span className={cn("text-left text-sm font-medium", isPositive ? "text-primary" : "text-destructive")}>
+        {formatPercent(item.changePercent)}
+      </span>
+      <span className="text-left text-sm text-white/80">{formatValue(item.high, item.symbol)}</span>
+      <span className="text-left text-sm text-white/80">{formatValue(item.low, item.symbol)}</span>
+      <span className="text-left text-sm text-white/80">{formatVolume(item.volume)}</span>
 
       <button
         type="button"
@@ -137,38 +144,31 @@ export function MarketWatchCard({
   onWatchlistToggle,
   className,
 }: MarketWatchCardProps) {
-  const [activeTab, setActiveTab] = useState<MarketWatchTab>("watchlist");
+  const activeTab = "watchlist";
 
   return (
     <div
       className={cn(
-        "flex flex-col rounded-[10px] border border-white/20 bg-white/5 p-4 md:p-6 ",
+        "flex flex-col rounded-[10px] border border-white/15 bg-[#0a0a0a] p-4 md:p-5",
         className,
       )}
     >
-      <div className="flex gap-6">
-        {MARKET_WATCH_TABS.map((tab) => {
-          const isActive = activeTab === tab.id;
+      <div className="no-scrollbar mt-2 min-h-0 flex-1 overflow-auto">
+        <div className="min-w-[720px]">
+          <div className="hidden grid-cols-[1.6fr_1fr_1fr_1fr_1fr_1fr_0.9fr_24px] items-center gap-3 px-3 py-2 text-sm font-medium text-white/50 md:grid">
+            <div className="relative">
+              <span className="border-b border-primary px-1 pb-1 text-left font-semibold text-primary">Watchlist</span>
+            </div>
+            <span className="text-left">Last Price</span>
+            <span className="text-left">Change</span>
+            <span className="text-left">% Change</span>
+            <span className="text-left">High</span>
+            <span className="text-left">Low</span>
+            <span className="text-left">Volume</span>
+            <span />
+          </div>
 
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                "cursor-pointer px-2 pb-1 text-base font-medium transition-colors md:text-lg",
-                isActive
-                  ? "border-b-2 border-primary text-primary"
-                  : "text-white/60 hover:text-white/80",
-              )}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="mt-4 flex-1 min-h-[312px] max-h-[312px] overflow-auto">
+          <div>
         {activeTab === "watchlist" ? (
           <div className="flex flex-col gap-2">
             {isLoading ? (
@@ -201,7 +201,13 @@ export function MarketWatchCard({
         {activeTab === "news" ? (
           <NewsList news={news} />
         ) : null} */}
+          </div>
+        </div>
       </div>
+      <SymbolSelector
+        triggerLabel="+ Add Symbol"
+        className="mt-2 min-h-9 w-full shrink-0 justify-center rounded-[8px] border-white/10 bg-transparent text-sm font-normal text-white/80 hover:border-primary/50 hover:bg-transparent hover:text-primary"
+      />
     </div>
   );
 }

@@ -15,10 +15,23 @@ export type OpenPositionStripItem = {
   entryLabel: string;
   trend: SparklineDatum[];
   palette?: MiniAreaLineChartPalette;
+  entryPrice?: number;
+  markPrice?: number | null;
+  stopLoss?: number | null;
+  takeProfit?: number | null;
+  lots?: number;
 };
 
 export type OpenPositionsStripCardProps = {
   title?: string;
   items: OpenPositionStripItem[];
   className?: string;
+  onClosePosition?: (positionId: string) => Promise<void>;
+  onModifyProtection?: (input: { positionId: string; stopLoss: number | null; takeProfit: number | null }) => Promise<{ status: "PENDING" | "SENT" | "FAILED" | "SKIPPED" }>;
+};
+
+export type PositionCardProps = {
+  item: OpenPositionStripItem;
+  onClosePosition?: (positionId: string) => Promise<void>;
+  onModifyProtection?: OpenPositionsStripCardProps["onModifyProtection"];
 };

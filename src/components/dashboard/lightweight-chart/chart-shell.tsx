@@ -8,8 +8,7 @@ import { TradeMarkerOverlay } from "@/components/dashboard/trade-marker-overlay"
 import { ChartIndicatorPanel } from "./chart-indicator-panel";
 import { formatTrendlinePrice } from "@/lib/utils/chart/formatters";
 import type { FibonacciDrawing } from "@/types/lightweight-trading-chart";
-
-type ChartShellContext = any;
+import type { ChartShellContext } from "@/types/chart/chart-shell";
 
 export function ChartShell({ context }: { context: ChartShellContext }) {
   const { className, activeTool = "crosshair", setActiveTool = () => undefined, setDraftPoints = () => undefined, setIsDrawing = () => undefined, draggingTrendlineRef, draggingDraftTrendlineRef, draftTrendlineAnchorRef, draftTrendlineMovedRef, draftTrendlinePointerStartRef, draftTrendlinePendingClickPointRef, draggingTextRef, setTextEditor = () => undefined, magnetMode = "off", enabledIndicators = [], setMagnetMode = () => undefined, setMagnetLastEnabledMode = () => undefined, toggleIndicator = () => undefined, zoomIn = () => undefined, zoomOut = () => undefined, resetView = () => undefined, undoDrawing = () => undefined, redoDrawing = () => undefined, redoDrawings = [], isChartLoading = false, isError = false, mainContainerRef, drawingOverlayRef, overlayRevision = 0, renderedDrawings = [], snapPixel, allTradeMarkers = [], displayCandles = [], tradeMarkerBucketSeconds = 0, showTradeMarkers = true, toPixelPoint = () => null, onTradeMarkerClick, indicatorPeriods, setIndicatorPeriods, vwapSettings, setVwapSettings, latestVwapPoint, isVwapSettingsOpen, setIsVwapSettingsOpen, vwapSettingsTab, setVwapSettingsTab, textEditor, textEditorPixel, commitTextEditor = () => undefined, selectedFibonacci, updateSelectedFibonacci = () => undefined, deleteSelectedDrawing = () => undefined, lastDisplayedClose, priceLabelRef, subContainerRef, handleDrawingPointerDown = () => undefined, handleDrawingPointerMove = () => undefined, handleDrawingPointerUp = () => undefined } = context;
@@ -20,7 +19,7 @@ export function ChartShell({ context }: { context: ChartShellContext }) {
         className,
       )}
     >
-      <div className="flex min-h-[560px] gap-x-2 h-full">
+      <div className="flex min-h-0 h-full gap-x-2">
         {/* Temporarily hidden at the user's request; restore when the chart sidebar is needed again. */}
         {/* <ChartToolbarPanel
           activeTool={activeTool}
@@ -71,7 +70,7 @@ export function ChartShell({ context }: { context: ChartShellContext }) {
           ) : null}
 
           <div
-            className="relative min-h-[420px] flex-1"
+            className="relative min-h-0 flex-1"
             onPointerDownCapture={(event) => {
               const target = event.target as HTMLElement;
               if (activeTool !== "crosshair" && !target.closest("button, input, textarea, select, [role=\"dialog\"]")) {
@@ -84,7 +83,7 @@ export function ChartShell({ context }: { context: ChartShellContext }) {
             onPointerUp={handleDrawingPointerUp}
             onPointerCancel={handleDrawingPointerUp}
           >
-            <div ref={mainContainerRef} className="absolute inset-0 min-h-[420px] min-w-0 [&_.tv-lightweight-charts]:bg-transparent" style={{ width: "100%", height: "100%" }} />
+            <div ref={mainContainerRef} className="absolute inset-0 min-w-0 [&_.tv-lightweight-charts]:bg-transparent" style={{ width: "100%", height: "100%" }} />
             <svg
               ref={drawingOverlayRef}
               data-revision={overlayRevision}
