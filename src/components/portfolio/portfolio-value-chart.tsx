@@ -5,7 +5,7 @@ import { PiDownloadFill } from "react-icons/pi";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
-import { TRADING_TIMEFRAMES } from "@/lib/mock-data/trading-filter-bar";
+import { TRADING_TIMEFRAMES } from "@/constants/trading-timeframes";
 import {
   getPortfolioValueYAxisTicks,
   mockPortfolioValueChartData,
