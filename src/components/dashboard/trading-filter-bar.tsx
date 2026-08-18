@@ -15,7 +15,7 @@ import { AssetIcon } from "@/components/shared/asset-icon";
 import { formatTradingPrice } from "@/components/shared/trading-table-cells";
 import { useAccountWishlist } from "@/hooks/use-account-wishlist";
 import { useResolvedAccountNumber } from "@/hooks/use-resolved-account-number";
-import { TRADING_TIMEFRAMES } from "@/lib/mock-data/trading-filter-bar";
+import { TRADING_TIMEFRAMES } from "@/constants/trading-timeframes";
 import { getMarketPricePrecision } from "@/lib/utils/market-price";
 import { cn } from "@/lib/utils";
 import type {

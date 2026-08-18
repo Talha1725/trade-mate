@@ -13,8 +13,6 @@ import {
 import { cn } from "@/lib/utils";
 import type {
   MarketWatchCardProps,
-  MarketNewsItem,
-  MarketSignalItem,
   MarketWatchItem,
   MarketWatchTab,
 } from "@/types/market-watch-card";
@@ -92,45 +90,8 @@ function WatchlistRow({
 
 
 
-function SignalsList({ signals }: { signals: MarketSignalItem[] }) {
-  return (
-    <div className="space-y-3 pt-1">
-      {signals.map((signal) => (
-        <div key={signal.id} className="flex items-center justify-between gap-3 text-sm">
-          <span className="text-white/60">{signal.label}</span>
-          <span
-            className={cn(
-              "font-semibold",
-              signal.tone === "positive" && "text-primary",
-              signal.tone === "warning" && "text-orange",
-              signal.tone === "neutral" && "text-white",
-            )}
-          >
-            {signal.signal}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function NewsList({ news }: { news: MarketNewsItem[] }) {
-  return (
-    <div className="space-y-3 pt-1">
-      {news.map((item) => (
-        <div key={item.id} className="flex items-center justify-between gap-3 text-sm">
-          <span className="text-white font-medium">{item.headline}</span>
-          <span className="shrink-0 text-white/60">{item.minutesAgo}m</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export function MarketWatchCard({
   items,
-  signals = mockMarketSignals,
-  news = mockMarketNews,
   selectedItemId,
   isLoading = false,
   onItemSelect,

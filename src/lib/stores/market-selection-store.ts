@@ -5,7 +5,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 
 import type { MarketSelectionStore } from "@/types/market-selection-store";
 import type { TradingTimeframe } from "@/types/trading-filter-bar";
-import { TRADING_TIMEFRAMES } from "@/lib/mock-data/trading-filter-bar";
+import { TRADING_TIMEFRAMES } from "@/constants/trading-timeframes";
 
 const DEFAULT_TIMEFRAME: TradingTimeframe = "4H";
 
