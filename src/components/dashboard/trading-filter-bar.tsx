@@ -1,6 +1,6 @@
 "use client";
 import { CompareAssetsDropdown } from "@/components/dashboard/compare-assets-dropdown";
-import { formatTradingPrice } from "@/components/shared/trading-table-cells";
+import { formatTradingPrice } from "@/lib/utils/price-formatters";
 import { useAccountWishlist } from "@/hooks/use-account-wishlist";
 import { useResolvedAccountNumber } from "@/hooks/use-resolved-account-number";
 import { TRADING_TIMEFRAMES } from "@/constants/trading-timeframes";

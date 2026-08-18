@@ -27,7 +27,7 @@ import { mergeStablePositions } from "@/lib/utils/stable-positions";
 import { mergeLivePositions, mergeLiveTrades } from "@/lib/utils/live-portfolio";
 import { normalizeTradingSymbol } from "@/lib/utils/market-symbol-icon";
 import { resolveMarketWatchIcon } from "@/lib/utils/market-symbol-icon";
-import { formatTradingPrice } from "@/components/shared/trading-table-cells";
+import { formatTradingPrice } from "@/lib/utils/price-formatters";
 import type { AccountLedgerResponse, UserPortfolioResponse } from "@/types/dashboard";
 import type { MarketSnapshotChartSummary, MarketSnapshotData } from "@/types/market-snapshot";
 import type { MarketWatchItem } from "@/types/market-watch-card";

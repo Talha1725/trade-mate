@@ -5,6 +5,7 @@ import type { PortfolioAccount, PortfolioPosition } from "@/types/dashboard";
 import { resolveUrfxPlanKey } from "@/lib/utils/urfx-pricing";
 import type { UrfxPricingPlanKey } from "@/types/urfx-pricing";
 import { calculateNotionalUsd, getInstrumentSpec, type QuotePriceMap } from "@/lib/utils/instrument-spec";
+import { formatCurrency, formatDisplayPercent, formatSignedCurrency } from "@/lib/utils/number-formatters";
 
 const PROFIT_TARGET_PERCENT_BY_PLAN: Record<UrfxPricingPlanKey, number> = {
   onePhase: 10,
@@ -13,41 +14,8 @@ const PROFIT_TARGET_PERCENT_BY_PLAN: Record<UrfxPricingPlanKey, number> = {
   instantFundingLite: 8,
 };
 
-function formatCurrency(value: number) {
-  return value.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-function formatSignedCurrency(value: number) {
-  const prefix = value >= 0 ? "+$" : "-$";
-  return `${prefix}${Math.abs(value).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
 function clampDisplayPercent(value: number) {
   return Math.max(0, Math.min(100, value));
-}
-
-function formatDisplayPercent(value: number) {
-  const clampedValue = Math.max(0, Math.min(100, value));
-
-  if (clampedValue === 0) {
-    return "0.00%";
-  }
-
-  if (clampedValue < 1) {
-    return `${Number(clampedValue.toFixed(2)).toString()}%`;
-  }
-
-  if (clampedValue < 10) {
-    return `${Number(clampedValue.toFixed(1)).toString()}%`;
-  }
-
-  return `${Number(clampedValue.toFixed(0)).toString()}%`;
 }
 
 function getRiskTone(label: PortfolioOverviewResponse["summary"]["riskLabel"]) {
@@ -276,7 +244,7 @@ export function buildPortfolioMetricCards(
       id: "pnl",
       variant: "icon-stats",
       title: "P&L",
-      value: formatSignedCurrency(displayedFloatingPnl),
+      value: formatSignedCurrency(displayedFloatingPnl, "plus"),
       subtitle: "Across open positions",
       subtitleTone: displayedFloatingPnl >= 0 ? "positive" : "negative",
       iconSrc: "/images/portfolio/graph.svg",

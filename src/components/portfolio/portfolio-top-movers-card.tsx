@@ -9,25 +9,13 @@ import {
   PORTFOLIO_TOP_MOVERS_BACKGROUND_IMAGE,
 } from "@/lib/mock-data/portfolio-top-movers";
 import { cn } from "@/lib/utils";
+import { formatSignedCurrency, formatSignedPercent } from "@/lib/utils/number-formatters";
 import type {
   PortfolioTopMoverItem,
   PortfolioTopMoversCardProps,
   SortMode,
 } from "@/types/portfolio-top-movers";
 import type { MarketWatchIcon } from "@/types/market-watch-card";
-
-function formatSignedCurrency(value: number) {
-  const prefix = value >= 0 ? "+$" : "-$";
-  return `${prefix}${Math.abs(value).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-function formatSignedPercent(value: number) {
-  const prefix = value >= 0 ? "+" : "";
-  return `${prefix}${value.toFixed(2)}%`;
-}
 
 function MoverIcon({ icon, symbol }: { icon: MarketWatchIcon; symbol: string }) {
   return (
@@ -59,7 +47,7 @@ function MoverRow({ item }: { item: PortfolioTopMoverItem }) {
           isPositive ? "text-primary" : "text-destructive",
         )}
       >
-        {formatSignedCurrency(item.changeAmount)}
+        {formatSignedCurrency(item.changeAmount, "plus")}
       </span>
       <span
         className={cn(
@@ -67,7 +55,7 @@ function MoverRow({ item }: { item: PortfolioTopMoverItem }) {
           isPositive ? "text-primary" : "text-destructive",
         )}
       >
-        {formatSignedPercent(item.changePercent)}
+        {formatSignedPercent(item.changePercent, "plus")}
       </span>
     </div>
   );

@@ -3,25 +3,8 @@
 import { useId } from "react";
 
 import { cn } from "@/lib/utils";
+import { formatDisplayPercent } from "@/lib/utils/number-formatters";
 import type { SemiCircleDonutGaugeProps } from "@/types/semi-circle-donut-gauge";
-
-function formatGaugePercent(value: number) {
-  const clampedValue = Math.min(100, Math.max(0, value));
-
-  if (clampedValue === 0) {
-    return "0.00%";
-  }
-
-  if (clampedValue < 1) {
-    return `${Number(clampedValue.toFixed(2)).toString()}%`;
-  }
-
-  if (clampedValue < 10) {
-    return `${Number(clampedValue.toFixed(1)).toString()}%`;
-  }
-
-  return `${Number(clampedValue.toFixed(0)).toString()}%`;
-}
 
 export function SemiCircleDonutGauge({
   value,
@@ -31,7 +14,7 @@ export function SemiCircleDonutGauge({
 }: SemiCircleDonutGaugeProps) {
   const gradientId = useId().replace(/:/g, "");
   const clampedValue = Math.min(100, Math.max(0, value));
-  const displayLabel = label ?? formatGaugePercent(clampedValue);
+  const displayLabel = label ?? formatDisplayPercent(clampedValue);
 
   const strokeWidth = 6;
   const radius = 34;

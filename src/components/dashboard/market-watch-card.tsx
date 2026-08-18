@@ -4,7 +4,7 @@ import { Star, Loader2 } from "lucide-react";
 
 import { AssetIcon } from "@/components/shared/asset-icon";
 import { SymbolSelector } from "@/components/symbol-selector";
-import { formatTradingPrice } from "@/components/shared/trading-table-cells";
+import { formatTradingPrice } from "@/lib/utils/price-formatters";
 import { cn } from "@/lib/utils";
 import {
   formatWatchlistChange,

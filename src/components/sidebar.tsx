@@ -29,22 +29,7 @@ import { getSupplementalQuoteSymbol } from "@/lib/utils/instrument-spec";
 import { mergeLivePositions } from "@/lib/utils/live-portfolio";
 import { mapPortfolioPositionToPortfolioRow } from "@/lib/utils/trader-data";
 import { useLivePriceStore } from "@/lib/stores/live-price-store";
-
-function formatCurrency(value?: number) {
-  return `$${(value ?? 0).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-function formatSignedCurrency(value?: number) {
-  const amount = value ?? 0;
-  const prefix = amount >= 0 ? "+$" : "-$";
-  return `${prefix}${Math.abs(amount).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
+import { formatCurrency, formatSignedCurrency } from "@/lib/utils/number-formatters";
 
 function toNumber(value: string | number | null | undefined) {
   if (value == null) {
@@ -541,7 +526,7 @@ export function Sidebar({ className }: { className?: string }) {
             </span>
             <div className="flex items-center justify-between">
               <span className="text-[24px] font-medium leading-6 text-white">
-                {showBalance ? formatCurrency(activeSummary?.balance) : "•••••••"}
+                {showBalance ? formatCurrency(activeSummary?.balance ?? 0, "$") : "•••••••"}
               </span>
               <button
                 onClick={() => setShowBalance(!showBalance)}
@@ -563,7 +548,7 @@ export function Sidebar({ className }: { className?: string }) {
                   dailyPnlIsPositive ? "text-primary" : dailyPnlIsNegative ? "text-destructive" : "text-white/60",
                 )}
               >
-                {formatCurrency(dailyPnlValue)}
+                {formatCurrency(dailyPnlValue, "$")}
               </span>
             </div>
             <div className="w-full bg-neutral-800 h-1.5 rounded-full overflow-hidden mt-1.5">
@@ -583,7 +568,7 @@ export function Sidebar({ className }: { className?: string }) {
               iconSrc={SIDEBAR_ICONS.openPnl}
               label="Open P&L"
               subLabel="Today"
-              value={formatSignedCurrency(displayedOpenPnl)}
+              value={formatSignedCurrency(displayedOpenPnl ?? 0, "plus")}
               valueClassName={cn(
                 (displayedOpenPnl ?? 0) > 0
                   ? "text-primary"

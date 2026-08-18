@@ -1,4 +1,4 @@
-import { formatTradingPrice } from "@/components/shared/trading-table-cells";
+import { formatTradingPrice } from "@/lib/utils/price-formatters";
 import type { MarketWatchItem } from "@/types/market-watch-card";
 
 export function formatWatchlistChange(item: MarketWatchItem) {

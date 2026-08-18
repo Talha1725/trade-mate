@@ -1,4 +1,5 @@
 import { getMarketPricePrecision } from "@/lib/utils/market-price";
+import { formatSignedPercent } from "@/lib/utils/number-formatters";
 
 export function formatSignedChange(value: number, symbol?: string) {
   const precision = getMarketPricePrecision(symbol ?? "");
@@ -11,8 +12,7 @@ export function formatSignedChange(value: number, symbol?: string) {
 }
 
 export function formatPercent(value: number) {
-  const prefix = value >= 0 ? "+" : "";
-  return `${prefix}${value.toFixed(2)}%`;
+  return formatSignedPercent(value);
 }
 
 export function formatVolume(value: number | null | undefined) {
