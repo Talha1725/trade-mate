@@ -1,11 +1,10 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { FOREX_PREFIXES } from "@/constants/market";
 
 export const TRADING_TABLE_ROW_CLASS =
   "border-white/10 hover:bg-white/5 data-[state=selected]:bg-white/5 has-aria-expanded:!bg-muted/10";
-
-const FOREX_PREFIXES = ["AUD", "CAD", "CHF", "EUR", "GBP", "JPY", "NZD", "USD"];
 
 function isForexSymbol(symbol: string) {
   const normalized = symbol.trim().toUpperCase();

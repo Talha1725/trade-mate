@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
+import { ChartContainer } from "@/components/ui/chart";
 import {
   DEPTH_CHART_AXIS_TICKS,
   DEPTH_CHART_CENTER_PRICE,
@@ -23,23 +23,13 @@ import {
 } from "@/lib/mock-data/orders-depth-chart";
 import { cn } from "@/lib/utils";
 import type { DepthChartCardProps, DepthChartLevel } from "@/types/orders-depth-chart";
-
-const BID_COLOR = "#00FFA3";
-const ASK_COLOR = "#FF4D4D";
-const GRID_COLOR = "rgba(255, 255, 255, 0.14)";
-
-const CHART_CONFIG = {
-  bids: {
-    label: "Bids",
-    color: BID_COLOR,
-  },
-  asks: {
-    label: "Asks",
-    color: ASK_COLOR,
-  },
-} satisfies ChartConfig;
-
-const Y_AXIS_TICKS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+import {
+  DEPTH_ASK_COLOR,
+  DEPTH_BID_COLOR,
+  DEPTH_CHART_CONFIG,
+  DEPTH_GRID_COLOR,
+  DEPTH_Y_AXIS_TICKS,
+} from "@/constants/orders-depth-chart";
 
 function DepthLegendItem({
   label,
@@ -142,28 +132,28 @@ export function DepthChartCard({
 
       <div className="relative">
         <ChartContainer
-          config={CHART_CONFIG}
+          config={DEPTH_CHART_CONFIG}
           className="aspect-auto h-[330px] w-full"
           initialDimension={{ width: 520, height: 330 }}
         >
           <AreaChart data={chartData} margin={{ top: 12, right: 12, left: 4, bottom: 4 }}>
             <defs>
               <linearGradient id={bidGradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={BID_COLOR} stopOpacity={0.55} />
-                <stop offset="55%" stopColor={BID_COLOR} stopOpacity={0.18} />
-                <stop offset="100%" stopColor={BID_COLOR} stopOpacity={0} />
+                <stop offset="0%" stopColor={DEPTH_BID_COLOR} stopOpacity={0.55} />
+                <stop offset="55%" stopColor={DEPTH_BID_COLOR} stopOpacity={0.18} />
+                <stop offset="100%" stopColor={DEPTH_BID_COLOR} stopOpacity={0} />
               </linearGradient>
               <linearGradient id={askGradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={ASK_COLOR} stopOpacity={0.55} />
-                <stop offset="55%" stopColor={ASK_COLOR} stopOpacity={0.18} />
-                <stop offset="100%" stopColor={ASK_COLOR} stopOpacity={0} />
+                <stop offset="0%" stopColor={DEPTH_ASK_COLOR} stopOpacity={0.55} />
+                <stop offset="55%" stopColor={DEPTH_ASK_COLOR} stopOpacity={0.18} />
+                <stop offset="100%" stopColor={DEPTH_ASK_COLOR} stopOpacity={0} />
               </linearGradient>
             </defs>
 
             <CartesianGrid
               vertical
               horizontal
-              stroke={GRID_COLOR}
+              stroke={DEPTH_GRID_COLOR}
               strokeWidth={1}
               strokeOpacity={0.2}
             />
@@ -182,7 +172,7 @@ export function DepthChartCard({
 
             <YAxis
               domain={[0, 100]}
-              ticks={Y_AXIS_TICKS}
+              ticks={DEPTH_Y_AXIS_TICKS}
               tickLine={false}
               axisLine={false}
               tickMargin={8}
@@ -193,7 +183,7 @@ export function DepthChartCard({
             <Area
               type="stepAfter"
               dataKey="bids"
-              stroke={BID_COLOR}
+              stroke={DEPTH_BID_COLOR}
               strokeWidth={1.5}
               fill={`url(#${bidGradientId})`}
               connectNulls={false}
@@ -206,7 +196,7 @@ export function DepthChartCard({
               type="stepBefore"
               dataKey="asks"
               data={askSeries}
-              stroke={ASK_COLOR}
+              stroke={DEPTH_ASK_COLOR}
               strokeWidth={1.5}
               fill={`url(#${askGradientId})`}
               connectNulls={false}
@@ -222,7 +212,7 @@ export function DepthChartCard({
                     x={askPoint.price}
                     y={askPoint.asks ?? 0}
                     r={6}
-                    fill={ASK_COLOR}
+                    fill={DEPTH_ASK_COLOR}
                     fillOpacity={0.9}
                     stroke="#FF8A8A44"
                     strokeWidth={1.5}
@@ -234,7 +224,7 @@ export function DepthChartCard({
                     x={bidPoint.price}
                     y={0}
                     r={5}
-                    fill={BID_COLOR}
+                    fill={DEPTH_BID_COLOR}
                     fillOpacity={0.92}
                     stroke="#7DFFD044"
                     strokeWidth={1.5}

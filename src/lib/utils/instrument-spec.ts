@@ -1,4 +1,5 @@
 import type { AssetCategory } from "@/types/asset";
+import { FOREX_PREFIXES } from "@/constants/market";
 
 export type InstrumentSpec = {
   symbol: string;
@@ -9,8 +10,6 @@ export type InstrumentSpec = {
 };
 
 export type QuotePriceMap = Record<string, number | null | undefined>;
-
-const FOREX_PREFIXES = ["AUD", "CAD", "CHF", "EUR", "GBP", "JPY", "NZD", "USD"];
 
 function normalizeSymbol(symbol: string) {
   return symbol.trim().toUpperCase();

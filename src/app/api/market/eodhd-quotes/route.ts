@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { resolveEodhdSymbol } from "@/lib/utils/eodhd-symbol";
 import type { EodhdAssetQuote, EodhdEodBar, EodhdRealtimeBar } from "@/types/eodhd";
-
-const EODHD_BASE_URL = "https://eodhd.com/api";
+import { EODHD_BASE_URL } from "@/constants/market-api";
 
 async function fetchEodhdJson<T>(url: string) {
   const response = await fetch(url, {

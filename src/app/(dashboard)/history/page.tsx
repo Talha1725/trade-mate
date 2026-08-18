@@ -12,8 +12,7 @@ import { useSelectedAccountStore } from "@/lib/stores/account-store";
 import type { AccountLedgerResponse } from "@/types/dashboard";
 import { mapLedgerTrades } from "@/lib/utils/trader-data";
 import { useServerTablePagination } from "@/hooks/use-server-table-pagination";
-
-const PAGE_SIZE_OPTIONS = [10, 25, 50];
+import { HISTORY_PAGE_SIZE_OPTIONS } from "@/constants/table";
 
 export default function HistoryPage() {
   const [ledger, setLedger] = React.useState<AccountLedgerResponse | null>(null);
@@ -23,7 +22,7 @@ export default function HistoryPage() {
   const { page, pageSize, setPage, setPageSize } = useServerTablePagination({
     defaultPage: 1,
     defaultPageSize: 10,
-    pageSizeOptions: PAGE_SIZE_OPTIONS,
+    pageSizeOptions: HISTORY_PAGE_SIZE_OPTIONS,
   });
 
   React.useEffect(() => {
@@ -90,7 +89,7 @@ export default function HistoryPage() {
               pageCount: ledger.tradePagination.pageCount,
               totalItems: ledger.tradePagination.total,
               pageSize: ledger.tradePagination.limit,
-              pageSizeOptions: PAGE_SIZE_OPTIONS,
+              pageSizeOptions: HISTORY_PAGE_SIZE_OPTIONS,
               onPageChange: setPage,
               onPageSizeChange: (nextPageSize) => {
                 setPage(1);

@@ -7,8 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { useAuthStore } from "@/lib/stores/auth-store";
-
-const PUBLIC_PATHS = new Set(["/", "/login", "/logout"]);
+import { PUBLIC_PATHS } from "@/constants/auth";
 
 export function AuthenticationBoundary({
   children,

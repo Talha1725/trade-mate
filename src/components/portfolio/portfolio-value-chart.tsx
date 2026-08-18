@@ -4,7 +4,7 @@ import { useId, useMemo, useState } from "react";
 import { PiDownloadFill } from "react-icons/pi";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
-import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
+import { ChartContainer } from "@/components/ui/chart";
 import { TRADING_TIMEFRAMES } from "@/constants/trading-timeframes";
 import {
   getPortfolioValueYAxisTicks,
@@ -14,13 +14,7 @@ import { formatPortfolioValueTimestamp } from "@/lib/utils/portfolio-chart";
 import { cn } from "@/lib/utils";
 import type { PortfolioValueChartProps } from "@/types/portfolio-value-chart";
 import type { TradingTimeframe } from "@/types/trading-filter-bar";
-
-const CHART_CONFIG = {
-  value: {
-    label: "Portfolio Value",
-    color: "#0CE9A0",
-  },
-} satisfies ChartConfig;
+import { PORTFOLIO_VALUE_CHART_CONFIG } from "@/constants/portfolio-value-chart";
 
 function TimeframeButton({
   interval,
@@ -104,7 +98,7 @@ export function PortfolioValueChart({
 
       <div className="relative min-h-0 flex-1">
         <ChartContainer
-          config={CHART_CONFIG}
+          config={PORTFOLIO_VALUE_CHART_CONFIG}
           initialDimension={{ width: 520, height: 240 }}
           className="relative aspect-auto h-full w-full [&_.recharts-cartesian-grid-horizontal_line]:stroke-white/10 [&_.recharts-cartesian-grid-vertical_line]:stroke-white/10"
         >

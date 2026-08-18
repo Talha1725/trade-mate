@@ -8,10 +8,9 @@ import { formatTradingPrice } from "@/components/shared/trading-table-cells";
 import { cn } from "@/lib/utils";
 import {
   formatWatchlistChange,
-  formatWatchlistPercent,
   formatWatchlistValue,
-  formatWatchlistVolume,
 } from "@/lib/utils/watchlist-formatters";
+import { formatPercent, formatVolume } from "@/lib/utils/market-formatters";
 import type {
   MarketWatchCardProps,
   MarketWatchItem,
@@ -59,11 +58,11 @@ function WatchlistRow({
         {formatWatchlistChange(item)}
       </span>
       <span className={cn("text-left text-sm font-medium", isPositive ? "text-primary" : "text-destructive")}>
-        {formatWatchlistPercent(item.changePercent)}
+        {formatPercent(item.changePercent)}
       </span>
       <span className="text-left text-sm text-white/80">{formatWatchlistValue(item.high, item.symbol)}</span>
       <span className="text-left text-sm text-white/80">{formatWatchlistValue(item.low, item.symbol)}</span>
-      <span className="text-left text-sm text-white/80">{formatWatchlistVolume(item.volume)}</span>
+      <span className="text-left text-sm text-white/80">{formatVolume(item.volume)}</span>
 
       <button
         type="button"

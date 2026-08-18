@@ -13,6 +13,7 @@ export const EMA50_COLOR = "#3B82F6";
 export const VWAP_COLOR = "#FF8000";
 export const VWAP_BAND_COLORS = ["#2962FF", "#089981", "#F23645"];
 export const COMPARE_LINE_COLOR = "#C084FC";
+export const INITIAL_VISIBLE_RANGE_DAYS = 6;
 
 export const TRENDLINE_DEFAULT_STYLE = {
   color: "#2962FF",
@@ -78,4 +79,3 @@ export function getDefaultVisibleBars(timeframe: string) {
     default: return 150;
   }
 }
-

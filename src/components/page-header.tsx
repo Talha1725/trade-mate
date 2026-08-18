@@ -3,7 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ChevronDown, DownloadIcon, LaptopIcon, LogOutIcon, MonitorIcon } from "lucide-react";
+import { ChevronDown, DownloadIcon, LogOutIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { AccountSwitcherDropdown } from "@/components/account-switcher-dropdown";
@@ -24,64 +24,12 @@ import type { PageHeaderProps } from "@/types";
 import { PlaceOrderDialog } from "@/components/place-order-dialog";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { get } from "@/lib/utils/api";
-
-const CURRENT_DESKTOP_APP_VERSION =
-  process.env.NEXT_PUBLIC_DESKTOP_APP_VERSION?.replace(/^v/i, "") ?? "1.0.0";
-const DESKTOP_RELEASE_MANIFEST_URL =
-  process.env.NEXT_PUBLIC_DESKTOP_RELEASE_MANIFEST_URL ??
-  "https://trade-mate-storage.s3.us-east-2.amazonaws.com/downloads/latest.json";
-
-const DESKTOP_DOWNLOAD_LINKS = [
-  {
-    platform: "macArm64",
-    label: "Mac Apple Silicon",
-    description: "For M1, M2, M3, M4 Macs",
-    href: "/downloads/TradeMate-mac-arm64-v1.0.0.zip",
-    icon: LaptopIcon,
-  },
-  {
-    platform: "macIntel",
-    label: "Mac Intel",
-    description: "For Intel chip Macs",
-    href: "/downloads/TradeMate-mac-intel-v1.0.0.zip",
-    icon: LaptopIcon,
-  },
-  {
-    platform: "windows",
-    label: "Download for Windows",
-    description: "ZIP with setup and instructions",
-    href: "/downloads/TradeMate-windows-v1.0.0.zip",
-    icon: MonitorIcon,
-  },
-] as const;
-
-type DesktopDownloadPlatform = (typeof DESKTOP_DOWNLOAD_LINKS)[number]["platform"];
-
-type DesktopReleaseManifest = {
-  version?: string;
-  releasedAt?: string;
-  notes?: string;
-  macUrl?: string;
-  windowsUrl?: string;
-  downloads?: {
-    mac?: {
-      url?: string;
-      fileName?: string;
-    };
-    macArm64?: {
-      url?: string;
-      fileName?: string;
-    };
-    macIntel?: {
-      url?: string;
-      fileName?: string;
-    };
-    windows?: {
-      url?: string;
-      fileName?: string;
-    };
-  };
-};
+import {
+  CURRENT_DESKTOP_APP_VERSION,
+  DESKTOP_DOWNLOAD_LINKS,
+  DESKTOP_RELEASE_MANIFEST_URL,
+} from "@/constants/page-header";
+import type { DesktopDownloadPlatform, DesktopReleaseManifest } from "@/types/page-header";
 
 function getReleaseDownloadUrl(
   release: DesktopReleaseManifest | null,

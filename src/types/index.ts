@@ -29,6 +29,7 @@ export type * from "@/types/asset";
 export type * from "@/types/wishlist";
 export type * from "@/types/eodhd";
 export type * from "@/types/lightweight-trading-chart";
+export type * from "@/types/chart/chart-instance";
 export type * from "@/types/price";
 export type * from "@/types/trading-view";
 export type * from "@/types/asset-icon";

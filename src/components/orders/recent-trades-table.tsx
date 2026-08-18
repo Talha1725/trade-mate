@@ -309,7 +309,7 @@ export function RecentTradesTable({
   const shouldShowHeaderBadge = showHeaderBadge ?? !isStrategyPerformance;
   const sectionClassName = cn(
     "min-w-0 overflow-hidden rounded-[20px] border border-white/20 bg-white/5 p-4 md:p-6",
-    isStrategyPerformance && "flex min-h-0 max-h-[500px] flex-col xl:max-h-[366px]",
+    isStrategyPerformance && "flex h-full min-h-0 flex-col",
     className,
   );
 

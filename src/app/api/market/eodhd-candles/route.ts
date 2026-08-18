@@ -5,12 +5,10 @@ import { resolveEodhdSymbol } from "@/lib/utils/eodhd-symbol";
 import { mapTimeframeToEodhdPlan } from "@/lib/utils/map-timeframe-to-eodhd";
 import type { ChartCandle, EodhdEodBar, EodhdIntradayBar } from "@/types/eodhd";
 import type { TradingTimeframe } from "@/types/trading-filter-bar";
-
-const EODHD_BASE_URL = "https://eodhd.com/api";
-const VALID_TIMEFRAMES = new Set<TradingTimeframe>(["1m", "5m", "15m", "1H", "4H", "D", "W"]);
+import { EODHD_BASE_URL, VALID_MARKET_TIMEFRAMES } from "@/constants/market-api";
 
 function parseTimeframe(value: string | null): TradingTimeframe {
-  if (value && VALID_TIMEFRAMES.has(value as TradingTimeframe)) {
+  if (value && VALID_MARKET_TIMEFRAMES.has(value as TradingTimeframe)) {
     return value as TradingTimeframe;
   }
 
