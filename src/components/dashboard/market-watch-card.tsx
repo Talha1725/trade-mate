@@ -100,9 +100,9 @@ export function MarketWatchCard({
         className,
       )}
     >
-      <div className="no-scrollbar mt-2 min-h-0 flex-1 overflow-auto">
+      <div className="no-scrollbar min-h-0 flex-1 overflow-auto">
         <div className="min-w-[720px]">
-          <div className="hidden grid-cols-[1.6fr_1fr_1fr_1fr_1fr_1fr_0.9fr_24px] items-center gap-3 px-3 py-2 text-sm font-medium text-white/50 md:grid">
+          <div className="grid grid-cols-[1.6fr_1fr_1fr_1fr_1fr_1fr_0.9fr_24px] items-center gap-3 px-3 py-2 text-sm font-medium text-white/50">
             <div className="relative">
               <span className="border-b border-primary px-1 pb-1 text-left font-semibold text-primary">Watchlist</span>
             </div>
