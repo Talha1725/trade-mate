@@ -10,6 +10,7 @@ export function tradingFilterAssetToWatchlistItem(
     id: asset.id,
     symbol: asset.symbol,
     name: asset.label,
+    category: asset.category,
     price: 0,
     changePercent: 0,
   };

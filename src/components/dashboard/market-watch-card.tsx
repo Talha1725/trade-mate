@@ -5,32 +5,18 @@ import { Star, Loader2 } from "lucide-react";
 import { AssetIcon } from "@/components/shared/asset-icon";
 import { SymbolSelector } from "@/components/symbol-selector";
 import { formatTradingPrice } from "@/components/shared/trading-table-cells";
-import {
-  mockMarketNews,
-  mockMarketSignals,
-} from "@/lib/mock-data/market-watch-card";
 import { cn } from "@/lib/utils";
+import {
+  formatWatchlistChange,
+  formatWatchlistPercent,
+  formatWatchlistValue,
+  formatWatchlistVolume,
+} from "@/lib/utils/watchlist-formatters";
 import type {
   MarketWatchCardProps,
   MarketWatchItem,
   WatchlistRowProps,
 } from "@/types/market-watch-card";
-
-function formatPercent(value: number) {
-  const prefix = value >= 0 ? "+" : "";
-  return `${prefix}${value.toFixed(2)}%`;
-}
-
-function formatValue(value: number | null | undefined, symbol: string) {
-  return value == null ? "—" : formatTradingPrice(value, symbol);
-}
-
-function formatVolume(value: number | null | undefined) {
-  if (value == null) return "—";
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(2)}K`;
-  return value.toLocaleString("en-US");
-}
 
 function WatchlistRow({
   item,
@@ -70,14 +56,14 @@ function WatchlistRow({
         {formatTradingPrice(item.price, item.symbol)}
       </span>
       <span className={cn("text-left text-sm font-medium", isPositive ? "text-primary" : "text-destructive")}>
-        {item.change == null ? "—" : `${item.change >= 0 ? "+" : "-"}${Math.abs(item.change).toFixed(5)}`}
+        {formatWatchlistChange(item)}
       </span>
       <span className={cn("text-left text-sm font-medium", isPositive ? "text-primary" : "text-destructive")}>
-        {formatPercent(item.changePercent)}
+        {formatWatchlistPercent(item.changePercent)}
       </span>
-      <span className="text-left text-sm text-white/80">{formatValue(item.high, item.symbol)}</span>
-      <span className="text-left text-sm text-white/80">{formatValue(item.low, item.symbol)}</span>
-      <span className="text-left text-sm text-white/80">{formatVolume(item.volume)}</span>
+      <span className="text-left text-sm text-white/80">{formatWatchlistValue(item.high, item.symbol)}</span>
+      <span className="text-left text-sm text-white/80">{formatWatchlistValue(item.low, item.symbol)}</span>
+      <span className="text-left text-sm text-white/80">{formatWatchlistVolume(item.volume)}</span>
 
       <button
         type="button"
