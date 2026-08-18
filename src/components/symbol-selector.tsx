@@ -21,15 +21,8 @@ import { useResolvedAccountNumber } from "@/hooks/use-resolved-account-number";
 import { cn } from "@/lib/utils";
 import type { AssetCategory } from "@/types/asset";
 import type { TradingFilterBarAsset } from "@/types/trading-filter-bar";
-
-const CATEGORY_ORDER: AssetCategory[] = [ "FOREX", "CRYPTO", "COMMODITIES", "INDICES", "STOCK"];
-const CATEGORY_LABELS: Record<AssetCategory, string> = {
-  FOREX: "Forex",
-  CRYPTO: "Crypto",
-  COMMODITIES: "Commodities",
-  INDICES: "Indices",
-  STOCK: "Stocks",
-};
+import { SYMBOL_CATEGORY_LABELS, SYMBOL_CATEGORY_ORDER } from "@/constants/symbol-selector";
+import type { SymbolSelectorProps } from "@/types/symbol-selector";
 
 /**
  * Searchable, category-grouped symbol selector backed by the shared
@@ -39,16 +32,53 @@ const CATEGORY_LABELS: Record<AssetCategory, string> = {
 export function SymbolSelector({
   className,
   contentClassName,
-}: {
-  className?: string;
-  contentClassName?: string;
-}) {
+  triggerLabel,
+}: SymbolSelectorProps) {
   // Keep the store's known assets in sync wherever this selector is mounted.
   useSyncedTradingAssets();
   const { data: assets = [] } = useAssets();
   const selectedSymbol = useSelectedSymbol();
   const setSelectedSymbol = useSetSelectedSymbol();
   const [open, setOpen] = React.useState(false);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+  const scrollPositionsRef = React.useRef<Array<{ element: HTMLElement; top: number; left: number }>>([]);
+
+  const captureScrollPositions = React.useCallback(() => {
+    const positions: Array<{ element: HTMLElement; top: number; left: number }> = [];
+    const documentScroller = document.scrollingElement;
+
+    if (documentScroller) {
+      positions.push({
+        element: documentScroller as HTMLElement,
+        top: documentScroller.scrollTop,
+        left: documentScroller.scrollLeft,
+      });
+    }
+
+    let element = triggerRef.current?.parentElement ?? null;
+
+    while (element) {
+      if (element.scrollHeight > element.clientHeight || element.scrollWidth > element.clientWidth) {
+        positions.push({ element, top: element.scrollTop, left: element.scrollLeft });
+      }
+      element = element.parentElement;
+    }
+
+    scrollPositionsRef.current = positions;
+  }, []);
+
+  const restoreScrollPositions = React.useCallback(() => {
+    const restore = () => {
+      for (const position of scrollPositionsRef.current) {
+        position.element.scrollTop = position.top;
+        position.element.scrollLeft = position.left;
+      }
+    };
+
+    restore();
+    window.requestAnimationFrame(restore);
+    window.setTimeout(restore, 0);
+  }, []);
 
   // Wishlist integration
   const resolvedAccountNumber = useResolvedAccountNumber(undefined);
@@ -65,7 +95,7 @@ export function SymbolSelector({
       byCategory.set(asset.category, list);
     }
 
-    return CATEGORY_ORDER.filter((category) => byCategory.has(category)).map((category) => ({
+    return SYMBOL_CATEGORY_ORDER.filter((category) => byCategory.has(category)).map((category) => ({
       category,
       items: byCategory.get(category)!,
     }));
@@ -78,22 +108,31 @@ export function SymbolSelector({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
+        ref={triggerRef}
+        type="button"
         role="combobox"
         aria-expanded={open}
+        onMouseDown={(event) => {
+          captureScrollPositions();
+          // Prevent the browser from scrolling the page to the trigger when
+          // the popover restores focus after opening.
+          event.preventDefault();
+        }}
+        onClick={restoreScrollPositions}
         className={cn(
           "flex h-9 cursor-pointer items-center justify-between gap-2 rounded-lg border border-white/20 bg-neutral-900 bg-linear-to-b from-[#6E6E6E1A] to-[#13131505] px-3 text-sm font-medium text-white shadow-none hover:border-primary hover:bg-white/15 hover:text-white",
           className,
         )}
       >
         <span className="flex min-w-0 items-center gap-2">
-          {selectedAsset ? (
+          {!triggerLabel && selectedAsset ? (
             <AssetIcon symbol={selectedAsset.symbol} label={selectedAsset.label} size={20} />
           ) : null}
           <span className="truncate">
-            {selectedAsset?.label ?? selectedSymbol ?? "Select symbol"}
+            {triggerLabel ?? selectedAsset?.label ?? selectedSymbol ?? "Select symbol"}
           </span>
         </span>
-        <ChevronsUpDown className="size-4 shrink-0 opacity-60" />
+        {!triggerLabel ? <ChevronsUpDown className="size-4 shrink-0 opacity-60" /> : null}
       </PopoverTrigger>
       <PopoverContent
         align="start"
@@ -109,7 +148,7 @@ export function SymbolSelector({
           <CommandList className="max-h-[250px]">
             <CommandEmpty>No symbol found.</CommandEmpty>
             {groups.map(({ category, items }) => (
-              <CommandGroup key={category} heading={CATEGORY_LABELS[category]}>
+              <CommandGroup key={category} heading={SYMBOL_CATEGORY_LABELS[category]}>
                 {items.map((asset) => (
                   <CommandItem
                     key={asset.id}

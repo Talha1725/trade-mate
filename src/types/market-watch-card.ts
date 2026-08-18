@@ -12,8 +12,13 @@ export type MarketWatchItem = {
   id: string;
   symbol: string;
   name: string;
+  category?: "CRYPTO" | "FOREX" | "COMMODITIES" | "INDICES" | "STOCK";
   price: number;
   changePercent: number;
+  change?: number | null;
+  high?: number | null;
+  low?: number | null;
+  volume?: number | null;
 };
 
 export type MarketWatchTabConfig = {
@@ -43,4 +48,11 @@ export type MarketWatchCardProps = {
   onItemSelect?: (itemId: string) => void;
   onWatchlistToggle?: (itemId: string) => void;
   className?: string;
+};
+
+export type WatchlistRowProps = {
+  item: MarketWatchItem;
+  isSelected: boolean;
+  onSelect?: () => void;
+  onWatchlistToggle?: (itemId: string) => void;
 };
