@@ -5,7 +5,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
-import { AppShell } from "@/components/app-shell";
 import { ActiveOrdersTable } from "@/components/orders/active-orders-table";
 import { DepthChartCard } from "@/components/orders/depth-chart-card";
 import { OrderBookCard } from "@/components/orders/order-book-card";
@@ -282,9 +281,10 @@ export default function OrdersPage() {
             getTradingSymbolAliases(position.symbol).includes(quote.symbol.toUpperCase()),
           ) ?? null,
           liveQuotePrices,
+          tradingAssets,
         ),
       ) ?? [],
-    [liveOverview?.positions, liveQuotes, liveQuotePrices],
+    [liveOverview?.positions, liveQuotes, liveQuotePrices, tradingAssets],
   );
   const recentTrades = React.useMemo(
     () =>
@@ -427,17 +427,14 @@ export default function OrdersPage() {
 
   if (!overview) {
     return (
-      <AppShell>
-        <div className="flex h-[80vh] w-full items-center justify-center">
-          <Loader2 className="size-8 animate-spin text-primary" />
-        </div>
-      </AppShell>
+      <div className="flex h-[80vh] w-full items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-primary" />
+      </div>
     );
   }
 
   return (
-    <AppShell>
-      <div className="flex w-full min-w-0 flex-col gap-6">
+    <div className="flex w-full min-w-0 flex-col gap-6">
         <PageHeader title="Orders" description="View and manage your open orders." />
 
         {/* <section className="rounded-[20px] border border-white/20 bg-white/5 p-4 md:p-5">
@@ -522,6 +519,5 @@ export default function OrdersPage() {
           onExport={handleExport}
         />
       </div>
-    </AppShell>
   );
 }

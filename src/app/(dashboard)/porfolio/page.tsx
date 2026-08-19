@@ -4,7 +4,6 @@ import * as React from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
-import { AppShell } from "@/components/app-shell";
 import { PageHeader } from "@/components/page-header";
 import { PortfolioMetricCards } from "@/components/portfolio/portfolio-metric-cards";
 import { PortfolioAllocationCard } from "@/components/portfolio/portfolio-allocation-card";
@@ -179,6 +178,7 @@ export default function PortfolioPage() {
                     resolveLiveQuoteForSymbol(position.symbol),
                     assetCategoryBySymbol.get(position.symbol.toUpperCase()) ?? null,
                     liveQuotePrices,
+                    tradingAssets,
                 ),
             ) ?? [];
 
@@ -193,7 +193,7 @@ export default function PortfolioPage() {
             const rightOrder = positionOrderRef.current.get(right.id) ?? Number.MAX_SAFE_INTEGER;
             return leftOrder - rightOrder;
         });
-    }, [assetCategoryBySymbol, liveQuotePrices, resolveLiveQuoteForSymbol, snapshot?.positions]);
+    }, [assetCategoryBySymbol, liveQuotePrices, resolveLiveQuoteForSymbol, snapshot?.positions, tradingAssets]);
 
     const openPositionSymbols = React.useMemo(
         () =>
@@ -226,9 +226,9 @@ export default function PortfolioPage() {
         () => buildPortfolioMetricCards(
             snapshot?.account ?? null,
             liveMetricOverview,
-            calculateLiveFloatingPnl(snapshot?.positions ?? [], liveQuotes, liveQuotePrices),
+            calculateLiveFloatingPnl(snapshot?.positions ?? [], liveQuotes, liveQuotePrices, tradingAssets),
         ),
-        [liveMetricOverview, liveQuotePrices, liveQuotes, snapshot?.account, snapshot?.positions],
+        [liveMetricOverview, liveQuotePrices, liveQuotes, snapshot?.account, snapshot?.positions, tradingAssets],
     );
 
     const allocationItems = React.useMemo(() => {
@@ -236,16 +236,16 @@ export default function PortfolioPage() {
             return overview?.allocation.items ?? [];
         }
 
-        return buildPortfolioAllocationItems(snapshot.account, snapshot.positions, liveQuotePrices);
-    }, [liveQuotePrices, overview?.allocation.items, snapshot?.account, snapshot?.positions]);
+        return buildPortfolioAllocationItems(snapshot.account, snapshot.positions, liveQuotePrices, tradingAssets);
+    }, [liveQuotePrices, overview?.allocation.items, snapshot?.account, snapshot?.positions, tradingAssets]);
 
     const exposureItems = React.useMemo(() => {
         if (!snapshot?.positions) {
             return [];
         }
 
-        return buildPortfolioExposureItems(snapshot.positions);
-    }, [snapshot?.positions]);
+        return buildPortfolioExposureItems(snapshot.positions, tradingAssets);
+    }, [snapshot?.positions, tradingAssets]);
 
     const accountId = resolvedAccountId;
     const supplementalQuoteSymbols = React.useMemo(
@@ -253,11 +253,11 @@ export default function PortfolioPage() {
             Array.from(
                 new Set(
                     openPositionSymbols
-                        .map((symbol) => getSupplementalQuoteSymbol(symbol))
+                        .map((symbol) => getSupplementalQuoteSymbol(symbol, tradingAssets))
                         .filter(Boolean) as string[],
                 ),
             ),
-        [openPositionSymbols],
+        [openPositionSymbols, tradingAssets],
     );
     const subscriptionSymbols = React.useMemo(
         () =>
@@ -407,17 +407,14 @@ export default function PortfolioPage() {
 
     if (!snapshot || !overview) {
         return (
-            <AppShell>
-                <div className="flex h-[80vh] w-full items-center justify-center">
-                    <Loader2 className="size-8 animate-spin text-primary" />
-                </div>
-            </AppShell>
+            <div className="flex h-[80vh] w-full items-center justify-center">
+                <Loader2 className="size-8 animate-spin text-primary" />
+            </div>
         );
     }
 
     return (
-        <AppShell>
-            <div className="flex w-full min-w-0 flex-col gap-6">
+        <div className="flex w-full min-w-0 flex-col gap-6">
                 <PageHeader
                     title="Portfolio"
                     description="Portfolio overview, equity curve, and trading performance."
@@ -459,6 +456,5 @@ export default function PortfolioPage() {
                     onExport={handleExport}
                 />
             </div>
-        </AppShell>
     );
 }

@@ -4,7 +4,6 @@ import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
-import { AppShell } from "@/components/app-shell";
 import { ChallengeProgressCard } from "@/components/analytics/challenge-progress-card";
 import { TradingCalendarCard } from "@/components/analytics/trading-calendar-card";
 import { RecentTradesTable } from "@/components/orders/recent-trades-table";
@@ -61,17 +60,14 @@ export default function AnalyticsPage() {
 
   if (analyticsQuery.isLoading || !analytics) {
     return (
-      <AppShell>
-        <div className="flex h-[80vh] w-full items-center justify-center">
-          <Loader2 className="size-8 animate-spin text-primary" />
-        </div>
-      </AppShell>
+      <div className="flex h-[80vh] w-full items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-primary" />
+      </div>
     );
   }
 
   return (
-    <AppShell>
-      <div className="flex w-full min-w-0 flex-col gap-6">
+    <div className="flex w-full min-w-0 flex-col gap-6">
         <PageHeader
           title="Analytics"
           description="Review analytics and performance."
@@ -114,6 +110,5 @@ export default function AnalyticsPage() {
           </div>
         </div>
       </div>
-    </AppShell>
   );
 }

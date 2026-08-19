@@ -3,7 +3,6 @@
 import * as React from "react";
 import { Loader2 } from "lucide-react";
 
-import { AppShell } from "@/components/app-shell";
 import { PageHeader } from "@/components/page-header";
 import { TradeHistoryTable } from "@/components/history/trade-history-table";
 import { historyApi } from "@/lib/services/history.api";
@@ -70,8 +69,7 @@ export default function HistoryPage() {
   const trades = React.useMemo(() => mapLedgerTrades(ledger ?? undefined), [ledger]);
 
   return (
-    <AppShell>
-      <div className="flex w-full min-w-0 flex-col gap-6">
+    <div className="flex w-full min-w-0 flex-col gap-6">
         <PageHeader
           title="Trade History"
           description="Review past trades and account performance."
@@ -99,6 +97,5 @@ export default function HistoryPage() {
           />
         )}
       </div>
-    </AppShell>
   );
 }

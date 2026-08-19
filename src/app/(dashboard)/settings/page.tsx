@@ -7,7 +7,6 @@ import { useQuery } from "@tanstack/react-query";
 import { AccountInformationCard } from "@/components/settings/account-information-card";
 import { SecurityOverviewCard } from "@/components/settings/security-overview-card";
 import { SettingsDialog } from "@/components/settings-dialog";
-import { AppShell } from "@/components/app-shell";
 import { PageHeader } from "@/components/page-header";
 import { settingsApi } from "@/lib/services/settings.api";
 import { useAuthStore } from "@/lib/stores/auth-store";
@@ -111,16 +110,14 @@ export default function SettingsPage() {
 
   if (isLoading && !overview) {
     return (
-      <AppShell>
-        <div className="flex h-[80vh] w-full items-center justify-center">
-          <Loader2 className="size-8 animate-spin text-primary" />
-        </div>
-      </AppShell>
+      <div className="flex h-[80vh] w-full items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-primary" />
+      </div>
     );
   }
 
   return (
-    <AppShell>
+    <div>
       <SettingsDialog view={activeView} onViewChange={setActiveView} profile={profile} />
       <div className="flex w-full min-w-0 flex-col gap-6">
         <PageHeader title="Settings" />
@@ -147,6 +144,6 @@ export default function SettingsPage() {
         {/* image */}
         <Image src="/images/setting/settinggraphs.png" alt="Settings" width={3000} height={200} className="w-full mt-4" />
       </div>
-    </AppShell>
+    </div>
   );
 }

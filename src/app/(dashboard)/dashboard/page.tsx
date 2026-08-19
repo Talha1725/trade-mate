@@ -3,7 +3,6 @@
 import * as React from "react";
 import { toast } from "sonner";
 
-import { AppShell } from "@/components/app-shell";
 import { LiveTradingView } from "@/components/common/live-trading-view";
 import { MarketSnapshotCard } from "@/components/dashboard/market-snapshot-card";
 import { MarketWatchCard } from "@/components/dashboard/market-watch-card";
@@ -156,7 +155,7 @@ export default function DashboardPage() {
     };
   }, [resolvedAccountId, token]);
 
-  const dashboardData = snapshot ? buildDashboardData(snapshot, ledger ?? undefined, liveQuotePrices, liveQuotes) : null;
+  const dashboardData = snapshot ? buildDashboardData(snapshot, ledger ?? undefined, liveQuotePrices, liveQuotes, tradingAssets) : null;
   const liveSymbol = dashboardData?.positions[0]?.symbol;
   const openPortfolioPositions = React.useMemo(
     () => dashboardData?.positions.filter((position) => position.status === "OPEN") ?? [],
@@ -351,7 +350,7 @@ export default function DashboardPage() {
     const side = isLong ? "long" : "short";
     const liveQuote = liveQuotes[position.symbol.toUpperCase()];
     const assetCategory = assetCategoryBySymbol.get(position.symbol.toUpperCase()) ?? null;
-    const portfolioRow = mapPortfolioPositionToPortfolioRow(position, liveQuote ?? null, assetCategory, liveQuotePrices);
+    const portfolioRow = mapPortfolioPositionToPortfolioRow(position, liveQuote ?? null, assetCategory, liveQuotePrices, tradingAssets);
     const entryPrice = Number(position.entryPrice);
     const currentPrice = Number(liveQuote?.price ?? position.currentPrice ?? position.entryPrice);
     const lots = Number(position.lots);
@@ -385,7 +384,7 @@ export default function DashboardPage() {
 
   const openPositionItems = React.useMemo(
     () => livePositions.slice(0, 4).map(mapPositionToOpenStripItem),
-    [livePositions, liveQuotes],
+    [livePositions, liveQuotes, tradingAssets],
   );
 
   const handleClosePosition = React.useCallback(async (positionId: string) => {
@@ -478,9 +477,9 @@ export default function DashboardPage() {
   const supplementalQuoteSymbols = React.useMemo(
     () =>
       Array.from(
-        new Set([chartSymbol, ...openSymbols].map((symbol) => getSupplementalQuoteSymbol(symbol)).filter(Boolean) as string[]),
+        new Set([chartSymbol, ...openSymbols].map((symbol) => getSupplementalQuoteSymbol(symbol, tradingAssets)).filter(Boolean) as string[]),
       ),
-    [chartSymbol, openSymbols],
+    [chartSymbol, openSymbols, tradingAssets],
   );
   const subscriptionMarketSymbols = React.useMemo(
     () =>
@@ -593,7 +592,7 @@ export default function DashboardPage() {
   });
 
   return (
-    <AppShell>
+    <div>
       <div className="flex w-full flex-col gap-4">
         <PageHeader
           title="Dashboard"
@@ -650,6 +649,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-    </AppShell>
+    </div>
   );
 }

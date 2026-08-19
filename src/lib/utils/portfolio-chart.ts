@@ -1,6 +1,6 @@
 import type { PortfolioValuePoint } from "@/types/portfolio-value-chart";
 import type { TradingTimeframe } from "@/types/trading-filter-bar";
-import { DISPLAY_TIME_ZONE } from "@/constant/timezone";
+import { DISPLAY_TIME_ZONE } from "@/constants/timezone";
 
 export const PORTFOLIO_TIMEFRAME_SPANS_MS: Record<TradingTimeframe, number> = {
   "1m": 60 * 60 * 1000,

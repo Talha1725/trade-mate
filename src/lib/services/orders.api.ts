@@ -1,4 +1,4 @@
-import { ROUTES } from "@/constant/routes";
+import { ROUTES } from "@/constants/routes";
 import { get, patch } from "@/lib/utils/api";
 import type { OrderOverviewResponse } from "@/types/orders";
 

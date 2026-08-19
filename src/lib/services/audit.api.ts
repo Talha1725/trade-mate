@@ -1,4 +1,4 @@
-import { ROUTES } from "@/constant/routes";
+import { ROUTES } from "@/constants/routes";
 import { get } from "@/lib/utils/api";
 import type { AuditLogEntry, AuditApiQuery, PaginatedAuditResponse } from "@/types/admin";
 import { formatNewYorkDateTime } from "@/lib/utils/date-time";

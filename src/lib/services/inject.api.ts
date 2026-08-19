@@ -1,4 +1,4 @@
-import { ROUTES } from "@/constant/routes"
+import { ROUTES } from "@/constants/routes"
 import { post } from "@/lib/utils/api"
 import type {
   TradeInjectionTargetOption,

@@ -1,4 +1,4 @@
-import { ROUTES } from "@/constant/routes";
+import { ROUTES } from "@/constants/routes";
 import { del, get, post } from "@/lib/utils/api";
 import type { AddToWishlistPayload, WishlistResponse } from "@/types/wishlist";
 

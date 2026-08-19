@@ -1,4 +1,4 @@
-import { ROUTES } from "@/constant/routes";
+import { ROUTES } from "@/constants/routes";
 import { get } from "@/lib/utils/api";
 import type { UrfxPricingPlan, UrfxPricingPlanKey } from "@/types/urfx-pricing";
 import type { UrfxPricingRulesResponse } from "@/types/urfx-pricing-api";

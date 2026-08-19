@@ -18,6 +18,7 @@ import type { PortfolioOpenPositionRow } from "@/types/portfolio-open-positions"
 import type { ActiveOrderRow } from "@/types/active-orders";
 import type { RecentTradeRow } from "@/types/orders-recent-trades";
 import type { PriceSocketQuote } from "@/types/price";
+import type { TradingFilterBarAsset } from "@/types/trading-filter-bar";
 import {
   calculateMarginUsd,
   calculateNotionalUsd,
@@ -67,12 +68,13 @@ export function calculateLiveFloatingPnl(
   positions: PortfolioPosition[],
   liveQuotes: LiveQuoteMap = {},
   quotePrices: QuotePriceMap = {},
+  assets: TradingFilterBarAsset[] = [],
 ) {
   return positions
     .filter((position) => position.status === "OPEN")
     .reduce((total, position) => {
       const liveQuote = resolveLiveQuote(position.symbol, liveQuotes);
-      return total + mapPortfolioPositionToPortfolioRow(position, liveQuote, null, quotePrices).pnl;
+      return total + mapPortfolioPositionToPortfolioRow(position, liveQuote, null, quotePrices, assets).pnl;
     }, 0);
 }
 
@@ -107,16 +109,17 @@ export function mapPortfolioPositionToPortfolioRow(
   liveQuote?: PriceSocketQuote | null,
   _assetCategory?: string | null,
   quotePrices: QuotePriceMap = {},
+  assets: TradingFilterBarAsset[] = [],
 ): PortfolioOpenPositionRow {
   const entryPrice = toNumber(position.entryPrice);
   const size = toNumber(position.lots);
   const directionMultiplier = position.direction === "BUY" ? 1 : -1;
-  const spec = getInstrumentSpec(position.symbol);
+  const spec = getInstrumentSpec(position.symbol, assets);
   const markPrice = getExecutablePrice(position, liveQuote);
   const priceDelta = (markPrice - entryPrice) * directionMultiplier;
-  const calculatedPnl = calculateNotionalUsd(position.symbol, size, priceDelta, quotePrices);
+  const calculatedPnl = calculateNotionalUsd(position.symbol, size, priceDelta, quotePrices, assets);
   const pnl = calculatedPnl ?? toNumber(position.floatingPnl);
-  const pnlPercentBase = calculateMarginUsd(position.symbol, size, entryPrice, quotePrices);
+  const pnlPercentBase = calculateMarginUsd(position.symbol, size, entryPrice, quotePrices, assets);
   const pnlPercent = pnlPercentBase != null && pnlPercentBase > 0 ? (pnl / pnlPercentBase) * 100 : 0;
 
   return {
@@ -131,7 +134,7 @@ export function mapPortfolioPositionToPortfolioRow(
     markPrice,
     takeProfit: position.takeProfit != null ? toNumber(position.takeProfit) : null,
     stopLoss: position.stopLoss != null ? toNumber(position.stopLoss) : null,
-    leverage: spec.leverage,
+    leverage: spec?.leverage ?? 0,
     pnl,
     pnlPercent,
     liquidationPrice: 0,
@@ -143,6 +146,7 @@ export function mapPortfolioPositionToActiveOrder(
   position: PortfolioPosition,
   liveQuote?: PriceSocketQuote | null,
   quotePrices: QuotePriceMap = {},
+  assets: TradingFilterBarAsset[] = [],
 ): ActiveOrderRow {
   const entryPrice = toNumber(position.entryPrice);
   const size = toNumber(position.lots);
@@ -150,7 +154,7 @@ export function mapPortfolioPositionToActiveOrder(
   const markPrice = getExecutablePrice(position, liveQuote);
   const priceDelta = (markPrice - entryPrice) * directionMultiplier;
   const calculatedPnl = liveQuote
-    ? calculateNotionalUsd(position.symbol, size, priceDelta, quotePrices)
+    ? calculateNotionalUsd(position.symbol, size, priceDelta, quotePrices, assets)
     : null;
 
   return {
@@ -279,13 +283,14 @@ export function buildEquityCurve(account: PortfolioAccount, trades: PortfolioTra
 export function buildSymbolBreakdown(
   positions: PortfolioPosition[],
   quotePrices: QuotePriceMap = {},
+  assets: TradingFilterBarAsset[] = [],
 ): SymbolBreakdownDatum[] {
   const totals = new Map<string, number>();
 
   for (const position of positions) {
     const current = totals.get(position.symbol) ?? 0;
     const currentPrice = toNumber(position.currentPrice ?? position.entryPrice);
-    const notional = calculateNotionalUsd(position.symbol, toNumber(position.lots), currentPrice, quotePrices);
+    const notional = calculateNotionalUsd(position.symbol, toNumber(position.lots), currentPrice, quotePrices, assets);
     totals.set(
       position.symbol,
       current + (notional != null ? Math.abs(notional) : Math.max(Math.abs(toNumber(position.floatingPnl)), toNumber(position.lots))),
@@ -304,13 +309,14 @@ export function buildStatCards(
   trades: PortfolioTrade[],
   quotePrices: QuotePriceMap = {},
   liveQuotes: LiveQuoteMap = {},
+  assets: TradingFilterBarAsset[] = [],
 ): StatCardDatum[] {
   const closedTrades = trades.filter((trade) => trade.status === "CLOSED");
   const winners = closedTrades.filter((trade) => toNumber(trade.pnl) > 0).length;
   const winRate = closedTrades.length > 0 ? Math.round((winners / closedTrades.length) * 100) : 0;
 
   const freeCash = getFreeCash(account);
-  const liveFloatingPnl = calculateLiveFloatingPnl(positions, liveQuotes, quotePrices);
+  const liveFloatingPnl = calculateLiveFloatingPnl(positions, liveQuotes, quotePrices, assets);
 
   return [
     {
@@ -342,6 +348,7 @@ export function buildDashboardData(
   ledger?: AccountLedgerResponse,
   quotePrices: QuotePriceMap = {},
   liveQuotes: LiveQuoteMap = {},
+  assets: TradingFilterBarAsset[] = [],
 ) {
   const account = ledger?.account ?? snapshot.account;
   const positions = ledger?.positions ?? snapshot.positions;
@@ -351,9 +358,9 @@ export function buildDashboardData(
     account,
     positions,
     trades,
-    statCards: buildStatCards(account, positions, trades, quotePrices, liveQuotes),
+    statCards: buildStatCards(account, positions, trades, quotePrices, liveQuotes, assets),
     equityCurve: buildEquityCurve(account, trades),
-    breakdown: buildSymbolBreakdown(positions, quotePrices),
+    breakdown: buildSymbolBreakdown(positions, quotePrices, assets),
     openPositionsSummary: buildOpenPositionSummary(positions),
     recentActivity: buildRecentActivity(trades),
   };

@@ -4,6 +4,8 @@ import type { PortfolioExposureItem, PortfolioAllocationItem } from "@/types/por
 import type { PortfolioAccount, PortfolioPosition } from "@/types/dashboard";
 import { resolveUrfxPlanKey } from "@/lib/utils/urfx-pricing";
 import type { UrfxPricingPlanKey } from "@/types/urfx-pricing";
+import type { TradingFilterBarAsset } from "@/types/trading-filter-bar";
+import { PORTFOLIO_GROUPS, type PortfolioGroupId } from "@/constants/portfolio-groups";
 import { calculateNotionalUsd, getInstrumentSpec, type QuotePriceMap } from "@/lib/utils/instrument-spec";
 import { formatCurrency, formatDisplayPercent, formatSignedCurrency } from "@/lib/utils/number-formatters";
 
@@ -34,18 +36,9 @@ function getRiskLabel(marginUsagePercent: number): PortfolioOverviewResponse["su
   return "Low";
 }
 
-function getAssetGroup(symbol: string) {
-  const assetClass = getInstrumentSpec(symbol).assetClass;
-
-  if (assetClass === "CRYPTO") {
-    return "crypto";
-  }
-
-  if (assetClass === "FOREX") {
-    return "forex";
-  }
-
-  return "commodities";
+function getAssetGroup(symbol: string, assets: TradingFilterBarAsset[] = []): PortfolioGroupId | null {
+  const assetClass = getInstrumentSpec(symbol, assets)?.assetClass;
+  return PORTFOLIO_GROUPS.find((group) => assetClass && group.categories.includes(assetClass))?.id ?? null;
 }
 
 const DECORATIVE_CHART = [41, 44, 47, 50, 53, 55, 52, 54, 57, 60, 58, 61, 64, 62, 65, 63, 66, 69, 67, 70, 72, 74, 75];
@@ -72,74 +65,47 @@ export function buildPortfolioAllocationItems(
   account: Pick<PortfolioAccount, "equity">,
   positions: PortfolioPosition[],
   quotePrices: QuotePriceMap = {},
+  assets: TradingFilterBarAsset[] = [],
 ): PortfolioAllocationItem[] {
-  const groups = {
-    crypto: 0,
-    forex: 0,
-    cash: 0,
-    commodities: 0,
-  };
+  const groups = Object.fromEntries(PORTFOLIO_GROUPS.map((group) => [group.id, 0])) as Record<PortfolioGroupId, number>;
 
   for (const position of positions.filter((item) => item.status === "OPEN")) {
     const currentPrice = toNumber(position.currentPrice ?? position.entryPrice);
-    const notional = calculateNotionalUsd(position.symbol, toNumber(position.lots), currentPrice, quotePrices);
+    const notional = calculateNotionalUsd(position.symbol, toNumber(position.lots), currentPrice, quotePrices, assets);
     const value = Math.abs(notional ?? (toNumber(position.lots) * currentPrice));
-    const group = getAssetGroup(position.symbol);
-    groups[group] += value;
+    const group = getAssetGroup(position.symbol, assets);
+    if (group) groups[group] += value;
   }
 
   const equity = Math.max(0, toNumber(account.equity));
-  const positionValueSum = groups.crypto + groups.forex + groups.commodities;
-  groups.cash = Math.max(0, equity - positionValueSum);
+  const positionValueSum = Object.values(groups).reduce((sum, value) => sum + value, 0);
+  const cash = Math.max(0, equity - positionValueSum);
 
   const total = Math.max(1, Math.max(equity, positionValueSum));
 
   return [
-    { id: "crypto", label: "Crypto", value: Number(groups.crypto.toFixed(2)), percent: Number(((groups.crypto / total) * 100).toFixed(1)), color: "#22E0A2" },
-    { id: "forex", label: "Forex", value: Number(groups.forex.toFixed(2)), percent: Number(((groups.forex / total) * 100).toFixed(1)), color: "#3B82F6" },
-    { id: "cash", label: "Cash", value: Number(groups.cash.toFixed(2)), percent: Number(((groups.cash / total) * 100).toFixed(1)), color: "#FF8000" },
-    { id: "commodities", label: "Commodities", value: Number(groups.commodities.toFixed(2)), percent: Number(((groups.commodities / total) * 100).toFixed(1)), color: "#03D5D5" },
+    ...PORTFOLIO_GROUPS.map((group) => ({
+      id: group.id,
+      label: group.label,
+      value: Number(groups[group.id].toFixed(2)),
+      percent: Number(((groups[group.id] / total) * 100).toFixed(1)),
+      color: group.color,
+    })),
+    { id: "cash", label: "Cash", value: Number(cash.toFixed(2)), percent: Number(((cash / total) * 100).toFixed(1)), color: "#FF8000" },
   ];
 }
 
-export function buildPortfolioExposureItems(positions: PortfolioPosition[]): PortfolioExposureItem[] {
-  const groupedCounts = {
-    crypto: 0,
-    forex: 0,
-    commodities: 0,
-  };
+export function buildPortfolioExposureItems(positions: PortfolioPosition[], assets: TradingFilterBarAsset[] = []): PortfolioExposureItem[] {
+  const groupedCounts = Object.fromEntries(PORTFOLIO_GROUPS.map((group) => [group.id, 0])) as Record<PortfolioGroupId, number>;
 
   for (const position of positions.filter((item) => item.status === "OPEN")) {
-    const group = getAssetGroup(position.symbol);
-    groupedCounts[group] += 1;
+    const group = getAssetGroup(position.symbol, assets);
+    if (group) groupedCounts[group] += 1;
   }
 
-  const entries = [
-    {
-      id: "crypto",
-      label: "Crypto",
-      count: groupedCounts.crypto,
-      iconSrc: "/images/portfolio/btc.svg",
-      iconTone: "green" as const,
-      fill: "linear-gradient(180deg, #0CE9A0 0%, #108961 100%)",
-    },
-    {
-      id: "forex",
-      label: "Forex",
-      count: groupedCounts.forex,
-      iconSrc: "/images/portfolio/dollar.svg",
-      iconTone: "blue" as const,
-      fill: "linear-gradient(180deg, #60A5FA 0%, #3B82F6 100%)",
-    },
-    {
-      id: "commodities",
-      label: "Commodities",
-      count: groupedCounts.commodities,
-      iconSrc: "/images/portfolio/graph.svg",
-      iconTone: "orange" as const,
-      fill: "linear-gradient(180deg, #56F0F0 0%, #03D5D5 100%)",
-    },
-  ].filter((item) => item.count > 0);
+  const entries = PORTFOLIO_GROUPS
+    .map((group) => ({ ...group, count: groupedCounts[group.id] }))
+    .filter((item) => item.count > 0);
 
   const total = entries.reduce((sum, item) => sum + item.count, 0);
 

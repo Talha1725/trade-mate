@@ -1,10 +1,8 @@
-import { AppShell } from "@/components/app-shell";
 import { PageHeader } from "@/components/page-header";
 
 export default function AlertsPage() {
   return (
-    <AppShell>
-      <div className="flex w-full min-w-0 flex-col gap-6">
+    <div className="flex w-full min-w-0 flex-col gap-6">
         <PageHeader title="Alerts" description="Monitor account alerts and risk events." />
 
         <section className="rounded-[20px] border border-white/20 bg-white/5 p-6">
@@ -16,6 +14,5 @@ export default function AlertsPage() {
           </p>
         </section>
       </div>
-    </AppShell>
   );
 }

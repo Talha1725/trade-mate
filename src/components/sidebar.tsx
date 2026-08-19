@@ -22,6 +22,7 @@ import { SIDEBAR_ICONS } from "@/lib/mock-data/sidebar-icons";
 import { useSelectedAccountStore } from "@/lib/stores/account-store";
 import { useLiveAccountSnapshotStore } from "@/lib/stores/live-account-snapshot-store";
 import { usePriceStream } from "@/hooks/use-price-stream";
+import { useSyncedTradingAssets } from "@/hooks/use-synced-trading-assets";
 import type { PriceSocketPortfolioMessage } from "@/types/price";
 import type { PortfolioPosition } from "@/types/dashboard";
 import { formatTradingSymbolLabel, getTradingSymbolAliases } from "@/lib/utils/market-symbol-icon";
@@ -218,6 +219,7 @@ export function Sidebar({ className }: { className?: string }) {
   const [showBalance, setShowBalance] = React.useState(true);
   const selectedAccountId = useSelectedAccountStore((state) => state.selectedAccountId);
   const { data: accountSummary, refetch: refetchAccountSummary } = useAccountSummary(selectedAccountId);
+  const { data: tradingAssets = [] } = useSyncedTradingAssets();
   const liveSummariesByAccountId = useLiveAccountSnapshotStore((state) => state.summariesByAccountId);
   const liveOpenOrderCountsByAccountId = useLiveAccountSnapshotStore((state) => state.openOrderCountsByAccountId);
   const setAccountSummary = useLiveAccountSnapshotStore((state) => state.setAccountSummary);
@@ -252,14 +254,14 @@ export function Sidebar({ className }: { className?: string }) {
       }
 
       symbols.add(position.symbol);
-      const supplemental = getSupplementalQuoteSymbol(position.symbol);
+      const supplemental = getSupplementalQuoteSymbol(position.symbol, tradingAssets);
       if (supplemental) {
         symbols.add(supplemental);
       }
     }
 
     return Array.from(symbols);
-  }, [positionsForLiveData]);
+  }, [positionsForLiveData, tradingAssets]);
   const liveOpenPnl = React.useMemo(() => {
     if (!positionsForLiveData) {
       return null;
@@ -270,10 +272,10 @@ export function Sidebar({ className }: { className?: string }) {
       .reduce((total, position) => {
         const aliases = new Set(getTradingSymbolAliases(position.symbol));
         const quote = Object.values(liveQuotes).find((item) => aliases.has(item.symbol.toUpperCase())) ?? null;
-        const row = mapPortfolioPositionToPortfolioRow(position, quote, null, liveQuotePrices);
+        const row = mapPortfolioPositionToPortfolioRow(position, quote, null, liveQuotePrices, tradingAssets);
         return total + row.pnl;
       }, 0);
-  }, [liveQuotePrices, liveQuotes, positionsForLiveData]);
+  }, [liveQuotePrices, liveQuotes, positionsForLiveData, tradingAssets]);
   const displayedOpenPnl = liveOpenPnl ?? activeSummary?.floatingPnl;
   const livePositionsByAccountIdRef = React.useRef<Record<string, PortfolioPosition[]>>({});
   const forcePositionRefreshRef = React.useRef(false);
