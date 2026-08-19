@@ -1,4 +1,4 @@
-export type ZeroSign = "none" | "plus" | "minus";
+import type { ZeroSign } from "@/types/number-formatters";
 
 function resolveSign(value: number, zeroSign: ZeroSign) {
   if (value > 0) return "+";

@@ -5,7 +5,7 @@ import type {
   MarketWatchItem,
   MarketWatchTabConfig,
 } from "@/types/market-watch-card";
-import { DEFAULT_WATCHLIST_ASSET_IDS } from "@/lib/utils/watchlist";
+import { DEFAULT_WATCHLIST_ASSET_IDS } from "@/constants/watchlist";
 
 export const MARKET_WATCH_TABS: MarketWatchTabConfig[] = [
   { id: "watchlist", label: "Watchlist" },

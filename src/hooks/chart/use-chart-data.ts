@@ -7,12 +7,12 @@ import {
   buildAlignedCompareSeries,
   calculateEma,
   calculateVwap,
-  type VwapCalculationSettings,
 } from "@/lib/utils/chart-indicators";
 import { mergeLiveQuoteIntoCandles } from "@/lib/utils/merge-live-quote-candles";
 import type { ChartLiveQuote } from "@/types/eodhd";
 import type { ChartIndicatorId } from "@/types/lightweight-trading-chart";
 import type { TradingTimeframe } from "@/types/trading-filter-bar";
+import type { VwapCalculationSettings } from "@/types/chart/indicators";
 
 const EMPTY_CANDLES: import("@/types/eodhd").ChartCandle[] = [];
 
@@ -92,4 +92,3 @@ export function useChartData({
     lastDisplayedClose: displayCandles[displayCandles.length - 1]?.close ?? null,
   };
 }
-

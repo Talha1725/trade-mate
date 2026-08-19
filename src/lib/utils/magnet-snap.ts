@@ -1,34 +1,5 @@
 import type { MagnetMode } from "@/types/lightweight-trading-chart";
-
-export type MagnetSnapField = "open" | "high" | "low" | "close";
-
-export type MagnetCandle = {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-};
-
-export type MagnetSnapResult = {
-  snapped: boolean;
-  time: number;
-  price: number;
-  logicalIndex?: number;
-  field: MagnetSnapField | null;
-  distancePx: number | null;
-  candle: MagnetCandle | null;
-};
-
-type MagnetTimeScale = {
-  coordinateToLogical?: (coordinate: number) => number | null;
-  coordinateToTime: (coordinate: number) => number | string | { year: number; month: number; day: number } | null;
-};
-
-type MagnetSeries = {
-  coordinateToPrice: (coordinate: number) => number | null;
-  priceToCoordinate: (price: number) => number | null;
-};
+import type { MagnetCandle, MagnetSeries, MagnetSnapField, MagnetSnapResult, MagnetTimeScale } from "@/types/magnet-snap";
 
 export function getEffectiveMagnetMode(configuredMode: MagnetMode, modifierActive: boolean): MagnetMode {
   if (!modifierActive) return configuredMode;

@@ -1,26 +1,9 @@
 import type { MarketWatchIcon } from "@/types/market-watch-card";
-
-const EXACT_SYMBOL_ICON_MAP: Record<string, MarketWatchIcon> = {
-  BTCUSD: "bitcoin",
-  ETHUSD: "ethereum",
-  SOLUSD: "solana",
-  XRPUSD: "ripple",
-  ADAUSD: "cardano",
-};
-
-const SYMBOL_PREFIX_ICON_MAP: Array<[string, MarketWatchIcon]> = [
-  ["BTC", "bitcoin"],
-  ["ETH", "ethereum"],
-  ["SOL", "solana"],
-  ["XRP", "ripple"],
-  ["ADA", "cardano"],
-];
+import { CRYPTO_SYMBOL_BASES, EXACT_SYMBOL_ICON_MAP, SYMBOL_PREFIX_ICON_MAP } from "@/constants/market-symbols";
 
 export function normalizeTradingSymbol(symbol: string) {
   return symbol.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
-
-const CRYPTO_BASES = ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "DOGE", "AVAX", "LINK", "TON", "TRX", "DOT", "LTC", "SUI"];
 
 export function getTradingSymbolAliases(symbol: string) {
   const normalized = normalizeTradingSymbol(symbol);
@@ -31,7 +14,7 @@ export function getTradingSymbolAliases(symbol: string) {
 
   const aliases = new Set([normalized]);
 
-  for (const base of CRYPTO_BASES) {
+  for (const base of CRYPTO_SYMBOL_BASES) {
     if (normalized === `${base}USD`) {
       aliases.add(`${base}USDT`);
     } else if (normalized === `${base}USDT`) {

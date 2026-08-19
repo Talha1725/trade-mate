@@ -1,8 +1,5 @@
 import type { PortfolioPosition, PortfolioTrade } from "@/types/dashboard";
-
-type LivePositionMergeOptions = {
-  closedIds?: Set<string>;
-};
+import type { LivePositionMergeOptions } from "@/types/live-portfolio";
 
 /**
  * Live portfolio messages may contain only records changed by the latest

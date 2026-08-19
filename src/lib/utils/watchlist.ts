@@ -1,7 +1,7 @@
 import type { TradingFilterBarAsset } from "@/types/trading-filter-bar";
 import type { MarketWatchItem } from "@/types/market-watch-card";
 
-export const DEFAULT_WATCHLIST_ASSET_IDS: string[] = [];
+import { DEFAULT_WATCHLIST_ASSET_IDS } from "@/constants/watchlist";
 
 export function tradingFilterAssetToWatchlistItem(
   asset: TradingFilterBarAsset,

@@ -1,31 +1,6 @@
 import { normalizeTradingSymbol } from "@/lib/utils/market-symbol-icon";
-import type { CryptoIconCode } from "@/types/asset-icon";
-
-const FOREX_CURRENCY_COUNTRY_MAP: Record<string, string> = {
-  EUR: "EU",
-  USD: "US",
-  GBP: "GB",
-  JPY: "JP",
-  CHF: "CH",
-  AUD: "AU",
-  CAD: "CA",
-  NZD: "NZ",
-};
-
-const FOREX_COMMODITY_ICON_MAP: Record<string, CryptoIconCode> = {
-  XAU: "gold",
-};
-
-export type ResolvedForexPairIcon =
-  | {
-      kind: "forex";
-      flagCodes: [string, string];
-    }
-  | {
-      kind: "forex-mixed";
-      cryptoCode: CryptoIconCode;
-      quoteFlag: string;
-    };
+import type { ResolvedForexPairIcon } from "@/types/forex-flag";
+import { FOREX_COMMODITY_ICON_MAP, FOREX_CURRENCY_COUNTRY_MAP } from "@/constants/forex";
 
 export function resolveForexPairIcon(symbol: string): ResolvedForexPairIcon | null {
   const normalized = normalizeTradingSymbol(symbol);

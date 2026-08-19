@@ -1,22 +1,6 @@
 import { normalizeTradingSymbol } from "@/lib/utils/market-symbol-icon";
 import type { CryptoIconCode } from "@/types/asset-icon";
-
-const CRYPTO_SYMBOL_PREFIX_MAP: Array<[string, CryptoIconCode]> = [
-  ["BTC", "btc"],
-  ["ETH", "eth"],
-  ["SOL", "sol"],
-  ["BNB", "bnb"],
-  ["DOGE", "doge"],
-  ["AVAX", "avax"],
-  ["LINK", "link"],
-  ["XRP", "xrp"],
-  ["ADA", "ada"],
-  ["TON", "ton"],
-  ["TRX", "trx"],
-  ["DOT", "dot"],
-  ["LTC", "ltc"],
-  ["SUI", "sui"],
-];
+import { CRYPTO_SYMBOL_PREFIX_MAP } from "@/constants/market-symbols";
 
 export function resolveCryptoIconCode(symbol: string): CryptoIconCode | null {
   const normalized = normalizeTradingSymbol(symbol);

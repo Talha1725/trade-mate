@@ -3,9 +3,10 @@
 import * as React from "react";
 import { type IChartApi, type ISeriesApi, type UTCTimestamp } from "lightweight-charts";
 import { ChartShell } from "@/components/dashboard/lightweight-chart/chart-shell";
-import { DEFAULT_VWAP_CALCULATION } from "@/lib/utils/chart-indicators";
+import { DEFAULT_VWAP_CALCULATION } from "@/constants/chart/indicators";
 import { getBucketSeconds } from "@/lib/utils/merge-live-quote-candles";
-import { calculateFibPrice, DEFAULT_FIBONACCI_LEVELS } from "@/lib/utils/fibonacci";
+import { calculateFibPrice } from "@/lib/utils/fibonacci";
+import { DEFAULT_FIBONACCI_LEVELS } from "@/constants/fibonacci";
 import { resolveMagnetSnap, validateMagnetSettings } from "@/lib/utils/magnet-snap";
 import {
   FIBONACCI_DEFAULT_LABELS,

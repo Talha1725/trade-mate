@@ -1,7 +1,7 @@
 import type * as React from "react";
 import type { IChartApi, ISeriesApi } from "lightweight-charts";
 
-import type { VwapCalculationSettings } from "@/lib/utils/chart-indicators";
+import type { VwapCalculationSettings } from "@/types/chart/indicators";
 import type { ChartCandle, ChartLiveQuote } from "@/types/eodhd";
 import type { TradingTimeframe } from "@/types/trading-filter-bar";
 

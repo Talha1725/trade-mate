@@ -18,16 +18,15 @@ import type { PortfolioOpenPositionRow } from "@/types/portfolio-open-positions"
 import type { ActiveOrderRow } from "@/types/active-orders";
 import type { RecentTradeRow } from "@/types/orders-recent-trades";
 import type { PriceSocketQuote } from "@/types/price";
+import type { LiveQuoteMap } from "@/types/live-price";
 import type { TradingFilterBarAsset } from "@/types/trading-filter-bar";
 import {
   calculateMarginUsd,
   calculateNotionalUsd,
   getInstrumentSpec,
-  type QuotePriceMap,
 } from "@/lib/utils/instrument-spec";
+import type { QuotePriceMap } from "@/types/instrument-spec";
 import { formatNewYorkDate, formatNewYorkDateTime } from "@/lib/utils/date-time";
-
-export type LiveQuoteMap = Record<string, PriceSocketQuote>;
 
 function toNumber(value: string | number | null | undefined) {
   if (value == null) {

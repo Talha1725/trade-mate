@@ -1,0 +1,1 @@
+export const PRICE_DISPLAY_FLUSH_MS = 300;

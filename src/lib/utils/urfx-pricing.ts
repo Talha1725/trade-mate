@@ -1,15 +1,7 @@
 import type { UrfxPricingPlanKey } from "@/types/urfx-pricing";
 
-export const DEFAULT_URFX_LEVERAGE = "FX 1:100 • Commodities 1:20 • Indices 1:20 • Crypto 1:2";
-
-const URFX_PLAN_KEY_ALIASES: Record<string, UrfxPricingPlanKey> = {
-  twophase: "twoPhase",
-  onephase: "onePhase",
-  onestep: "onePhase",
-  instantfunding: "instantFundingPro",
-  instantfundingpro: "instantFundingPro",
-  instantfundinglite: "instantFundingLite",
-};
+import { DEFAULT_URFX_LEVERAGE } from "@/constants/urfx-pricing";
+import { URFX_PLAN_KEY_ALIASES } from "@/constants/urfx-plan-aliases";
 
 export function resolveUrfxPlanKey(fundingType: string | null | undefined): UrfxPricingPlanKey | null {
   const normalized = fundingType?.trim().toLowerCase().replace(/[\s_-]+/g, "");

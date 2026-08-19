@@ -1,16 +1,5 @@
 import type { AssetCategory } from "@/types/asset";
-import type { TradingFilterBarAsset } from "@/types/trading-filter-bar";
-
-export type InstrumentSpec = {
-  symbol: string;
-  assetClass: AssetCategory;
-  contractSize: number;
-  quoteCurrency: string;
-  leverage: number;
-};
-
-export type QuotePriceMap = Record<string, number | null | undefined>;
-type AssetMetadata = Pick<TradingFilterBarAsset, "symbol" | "category" | "contractSize" | "quoteCurrency" | "leverage">;
+import type { AssetMetadata, InstrumentSpec, QuotePriceMap } from "@/types/instrument-spec";
 
 function normalizeSymbol(symbol: string) { return symbol.trim().toUpperCase(); }
 

@@ -1,32 +1,4 @@
-const FOREX_PAIRS = new Set([
-  "EURUSD",
-  "GBPUSD",
-  "USDJPY",
-  "USDCHF",
-  "AUDUSD",
-  "USDCAD",
-  "NZDUSD",
-  "XAUUSD",
-  "EURJPY",
-  "GBPJPY",
-]);
-
-const CRYPTO_BASES = new Set([
-  "BTC",
-  "ETH",
-  "SOL",
-  "BNB",
-  "XRP",
-  "ADA",
-  "DOGE",
-  "AVAX",
-  "LINK",
-  "TON",
-  "TRX",
-  "DOT",
-  "LTC",
-  "SUI",
-]);
+import { EODHD_CRYPTO_BASES, EODHD_FOREX_PAIRS } from "@/constants/eodhd-symbols";
 
 export function resolveEodhdSymbol(symbol: string) {
   const normalized = symbol.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
@@ -43,7 +15,7 @@ export function resolveEodhdSymbol(symbol: string) {
   if (normalized.endsWith("USD")) {
     const base = normalized.slice(0, -3);
 
-    if (CRYPTO_BASES.has(base)) {
+    if (EODHD_CRYPTO_BASES.has(base)) {
       return `${base}-USD.CC`;
     }
   }
@@ -53,7 +25,7 @@ export function resolveEodhdSymbol(symbol: string) {
     return `${base}-USD.CC`;
   }
 
-  if (FOREX_PAIRS.has(normalized)) {
+  if (EODHD_FOREX_PAIRS.has(normalized)) {
     return `${normalized}.FOREX`;
   }
 
