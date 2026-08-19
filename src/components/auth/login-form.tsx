@@ -134,6 +134,11 @@ export function LoginForm({
             </button>
           </div>
         </div>
+        <div className="text-right text-sm text-white/50 mt-4">
+        <Link href="/forgot-password" className="text-white/80 underline underline-offset-4 hover:text-white">
+          Forgot password?
+        </Link>
+      </div>
       </div>
 
       {errorMessage ? (
@@ -153,10 +158,6 @@ export function LoginForm({
         {!isSubmitting ? <ArrowRightIcon className="size-4" /> : null}
         {isSubmitting ? "Signing in..." : "Sign in"}
       </button>
-
-      <div className="text-center text-sm text-white/50 mt-4">
-        Contact support if you do not have assigned login credentials.
-      </div>
     </form>
   );
 }
