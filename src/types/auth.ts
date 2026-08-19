@@ -18,6 +18,21 @@ export type LoginCredentials = {
   password: string;
 };
 
+export type ForgotPasswordResponse = {
+  success: boolean;
+  message: string;
+};
+
+export type ResetPasswordInput = {
+  token: string;
+  password: string;
+};
+
+export type ResetPasswordResponse = {
+  success: boolean;
+  message: string;
+};
+
 export type AuthApiUser = Pick<AuthUser, "id" | "email" | "name" | "role"> & {
   assignedId?: string;
   avatarUrl?: string | null;
