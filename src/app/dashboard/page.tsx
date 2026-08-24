@@ -630,7 +630,7 @@ export default function DashboardPage() {
               isLoading={accountWatchlistItems.length > 0 && liveWatchlistItems.length < accountWatchlistItems.length}
               onItemSelect={setSelectedMarketId}
               onWatchlistToggle={toggleWishlistAsset}
-              className="min-h-[220px] xl:h-[340px]"
+              className="min-h-[340px] xl:h-[390px]"
             />
           </div>
 
@@ -645,7 +645,7 @@ export default function DashboardPage() {
               data={marketSnapshot ?? undefined}
               symbol={chartSymbol}
               assetClass={selectedFilterAsset?.category ?? null}
-              className="order-1 xl:order-2 xl:h-[340px]"
+              className="order-1 min-h-[340px] xl:order-2 xl:h-[390px]"
             />
           </div>
         </div>
