@@ -24,10 +24,11 @@ export interface ChartInstanceOptions {
   vwapSettings: VwapCalculationSettings; ema: Array<{ time: number; value: number }>;
   effectiveLiveQuote: ChartLiveQuote | null; candles: ChartCandle[]; chartDataKey: string; overlayRevision: React.Dispatch<React.SetStateAction<number>>; indicatorPeriods: { ema: number };
   syncLastPriceLabel: (series: ISeriesApi<"Candlestick">, price: number, label: HTMLDivElement | null, symbol: string) => void;
+  onOhlcvChange?: (candle: ChartCandle | null) => void;
 }
 
 export function useChartInstance(options: ChartInstanceOptions) {
-  const { mainContainerRef, subContainerRef, mainChartRef, subChartRef, mainSeriesRef, subSeriesRef, candleSeriesRef, emaSeriesRef, vwapSeriesRef, vwapUpperSeriesRefs: vwapUpperSeriesRefsRef, vwapLowerSeriesRefs: vwapLowerSeriesRefsRef, priceLineRef, priceLabelRef, lastCloseRef, initialViewKeyRef, symbol, timeframe, normalizedCompareSymbol, displayCandles, displayCompareCandles, compareTrack, enabledIndicators, vwap, vwapSettings, ema, effectiveLiveQuote, candles, chartDataKey, overlayRevision, indicatorPeriods, syncLastPriceLabel } = options;
+  const { mainContainerRef, subContainerRef, mainChartRef, subChartRef, mainSeriesRef, subSeriesRef, candleSeriesRef, emaSeriesRef, vwapSeriesRef, vwapUpperSeriesRefs: vwapUpperSeriesRefsRef, vwapLowerSeriesRefs: vwapLowerSeriesRefsRef, priceLineRef, priceLabelRef, lastCloseRef, initialViewKeyRef, symbol, timeframe, normalizedCompareSymbol, displayCandles, displayCompareCandles, compareTrack, enabledIndicators, vwap, vwapSettings, ema, effectiveLiveQuote, candles, chartDataKey, overlayRevision, indicatorPeriods, syncLastPriceLabel, onOhlcvChange } = options;
   const [chartReady, setChartReady] = React.useState(false);
 
   React.useEffect(() => {
@@ -405,6 +406,19 @@ export function useChartInstance(options: ChartInstanceOptions) {
 
     mainChart.timeScale().subscribeVisibleLogicalRangeChange(updateLastPriceLabel);
 
+    const candleByTime = new Map(displayCandles.map((candle) => [candle.time, candle]));
+    const latestCandle = displayCandles[displayCandles.length - 1] ?? null;
+    const handleCrosshairMove = (param: { time?: unknown }) => {
+      if (!onOhlcvChange) {
+        return;
+      }
+
+      const time = typeof param.time === "number" ? param.time : null;
+      onOhlcvChange(time == null ? latestCandle : candleByTime.get(time) ?? latestCandle);
+    };
+
+    mainChart.subscribeCrosshairMove(handleCrosshairMove);
+
     const viewKey = `${symbol}|${timeframe}`;
 
     if (initialViewKeyRef.current !== viewKey && candles.length > 0) {
@@ -423,8 +437,9 @@ export function useChartInstance(options: ChartInstanceOptions) {
     return () => {
       cancelAnimationFrame(labelFrameId);
       mainChart.timeScale().unsubscribeVisibleLogicalRangeChange(updateLastPriceLabel);
+      mainChart.unsubscribeCrosshairMove(handleCrosshairMove);
     };
-  }, [candles.length, chartDataKey, chartReady, displayCompareCandles, enabledIndicators, indicatorPeriods, normalizedCompareSymbol, displayCandles, vwapSettings]);
+  }, [candles.length, chartDataKey, chartReady, displayCompareCandles, enabledIndicators, indicatorPeriods, normalizedCompareSymbol, displayCandles, vwapSettings, onOhlcvChange]);
 
 
 
@@ -445,5 +460,6 @@ export function useChartInstance(options: ChartInstanceOptions) {
     if (priceLineRef.current) priceLineRef.current.applyOptions({ price: last.close });
     else priceLineRef.current = series.createPriceLine({ price: last.close, color: LAST_PRICE_COLOR, lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: false, lineVisible: true, title: "" });
     syncLastPriceLabel(series, last.close, priceLabelRef.current, symbol);
-  }, [candles, effectiveLiveQuote, indicatorPeriods.ema, timeframe, vwapSettings, symbol, syncLastPriceLabel]);
+    onOhlcvChange?.(last);
+  }, [candles, effectiveLiveQuote, indicatorPeriods.ema, timeframe, vwapSettings, symbol, syncLastPriceLabel, onOhlcvChange]);
 }

@@ -48,9 +48,28 @@ export function mergeLiveQuoteIntoCandles(
   timeframe: TradingTimeframe,
 ): ChartCandle[] {
   const bucketSeconds = getBucketSeconds(timeframe);
-  const now = Math.floor(Date.now() / 1000);
-  const bucketTime = Math.floor(now / bucketSeconds) * bucketSeconds;
+  const providerTime = quote.timestamp ? Date.parse(quote.timestamp) : Date.now();
+  if (!Number.isFinite(providerTime)) {
+    return candles;
+  }
+
+  const timestampSeconds = Math.floor(providerTime / 1000);
+  const bucketTime = Math.floor(timestampSeconds / bucketSeconds) * bucketSeconds;
   const lastCandle = candles[candles.length - 1];
+  const nowBucketTime = Math.floor(Math.floor(Date.now() / 1000) / bucketSeconds) * bucketSeconds;
+
+  if (lastCandle && bucketTime < lastCandle.time) {
+    return candles;
+  }
+
+  if (lastCandle && bucketTime > lastCandle.time + bucketSeconds) {
+    return candles;
+  }
+
+  if (bucketTime > nowBucketTime + bucketSeconds) {
+    return candles;
+  }
+
   const liveCandle = buildLiveCandle(bucketTime, quote, lastCandle);
 
   if (candles.length === 0) {
