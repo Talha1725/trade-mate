@@ -34,6 +34,7 @@ import type { MarketWatchItem } from "@/types/market-watch-card";
 import type { OpenPositionStripItem } from "@/types/open-positions-strip";
 import type { PortfolioPosition } from "@/types/dashboard";
 import type { PriceSocketPortfolioMessage, PriceSocketQuote } from "@/types";
+import type { ChartCandle } from "@/types/eodhd";
 import { usePriceStream } from "@/hooks/use-price-stream";
 import { useAccountWishlist } from "@/hooks/use-account-wishlist";
 import { useEodhdMarketQuotes } from "@/hooks/use-eodhd-market-quotes";
@@ -46,6 +47,7 @@ export default function DashboardPage() {
   const [ledger, setLedger] = React.useState<AccountLedgerResponse | null>(null);
   const [marketSnapshot, setMarketSnapshot] = React.useState<MarketSnapshotData | null>(null);
   const [marketChart, setMarketChart] = React.useState<MarketSnapshotChartSummary | null>(null);
+  const [chartOhlcvCandle, setChartOhlcvCandle] = React.useState<ChartCandle | null>(null);
   const [liveQuotes, setLiveQuotes] = React.useState<Record<string, PriceSocketQuote>>({});
   const livePositionMissingCountsRef = React.useRef(new Map<string, number>());
   const locallyClosedPositionIdsRef = React.useRef(new Set<string>());
@@ -213,6 +215,10 @@ export default function DashboardPage() {
   const marketInterval = mapTimeframeToMarketInterval(timeframe);
 
   React.useEffect(() => {
+    setChartOhlcvCandle(null);
+  }, [chartSymbol, timeframe]);
+
+  React.useEffect(() => {
     if (compareAssetId && compareAssetId === selectedMarketId) {
       setCompareAssetId(null);
     }
@@ -319,15 +325,22 @@ export default function DashboardPage() {
   );
   const filterBarOhlcv = React.useMemo(
     () =>
-      marketChart
+      chartOhlcvCandle
         ? {
-            open: marketChart.open,
-            high: marketChart.high,
-            low: marketChart.low,
-            volume: marketChart.volume,
+            open: chartOhlcvCandle.open,
+            high: chartOhlcvCandle.high,
+            low: chartOhlcvCandle.low,
+            volume: chartOhlcvCandle.volume,
           }
-        : { open: 0, high: 0, low: 0, volume: 0 },
-    [marketChart],
+        : marketChart
+          ? {
+              open: marketChart.open,
+              high: marketChart.high,
+              low: marketChart.low,
+              volume: marketChart.volume,
+            }
+          : { open: 0, high: 0, low: 0, volume: 0 },
+    [chartOhlcvCandle, marketChart],
   );
 
   function buildPositionTrend(entryPrice: number, currentPrice: number, side: "long" | "short") {
@@ -622,6 +635,7 @@ export default function DashboardPage() {
               compareLiveQuote={compareLiveQuote}
               trades={ledger?.trades ?? []}
               tradePositions={snapshot?.positions ?? []}
+              onOhlcvChange={setChartOhlcvCandle}
               className="h-[420px] min-h-0 xl:h-[560px]"
             />
             <MarketWatchCard

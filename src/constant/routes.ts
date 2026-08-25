@@ -11,6 +11,7 @@ export const ROUTES = {
   MARKET: {
     QUOTES:         `/api/market/quotes`,
     HISTORY:        `/api/market/history`,
+    CHART_DATA:     `/api/market/chart`,
     SYMBOLS:        `/api/market/symbols`,
     SNAPSHOT:       `/api/market/snapshot`,
     BY_SYMBOL: (s: string) => `/api/market/${s}`,
