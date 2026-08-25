@@ -34,6 +34,7 @@ export interface ChartInstanceOptions {
 export function useChartInstance(options: ChartInstanceOptions) {
   const { mainContainerRef, subContainerRef, mainChartRef, subChartRef, mainSeriesRef, subSeriesRef, candleSeriesRef, emaSeriesRef, vwapSeriesRef, vwapUpperSeriesRefs: vwapUpperSeriesRefsRef, vwapLowerSeriesRefs: vwapLowerSeriesRefsRef, priceLineRef, priceLabelRef, lastCloseRef, initialViewKeyRef, symbol, timeframe, normalizedCompareSymbol, displayCandles, displayCompareCandles, compareTrack, enabledIndicators, vwap, vwapSettings, ema, effectiveLiveQuote, candles, chartDataKey, overlayRevision, indicatorPeriods, syncLastPriceLabel, onOhlcvChange } = options;
   const [chartReady, setChartReady] = React.useState(false);
+  const hoveredCandleTimeRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -422,10 +423,16 @@ export function useChartInstance(options: ChartInstanceOptions) {
       }
 
       const time = typeof param.time === "number" ? param.time : null;
+      hoveredCandleTimeRef.current = time;
       onOhlcvChange(time == null ? latestCandle : candleByTime.get(time) ?? latestCandle);
     };
 
     mainChart.subscribeCrosshairMove(handleCrosshairMove);
+
+    const selectedCandle = hoveredCandleTimeRef.current == null
+      ? latestCandle
+      : candleByTime.get(hoveredCandleTimeRef.current) ?? latestCandle;
+    onOhlcvChange?.(selectedCandle);
 
     const viewKey = `${symbol}|${timeframe}`;
 
@@ -483,6 +490,5 @@ export function useChartInstance(options: ChartInstanceOptions) {
       });
     }
     syncLastPriceLabel(series, last.close, priceLabelRef.current, symbol);
-    onOhlcvChange?.(last);
   }, [candles, effectiveLiveQuote, indicatorPeriods.ema, timeframe, vwapSettings, symbol, syncLastPriceLabel, onOhlcvChange]);
 }

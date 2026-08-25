@@ -220,10 +220,6 @@ export function LightweightTradingChart({
     vwapSettings,
   });
 
-  React.useEffect(() => {
-    onOhlcvChange?.(displayCandles[displayCandles.length - 1] ?? null);
-  }, [displayCandles, onOhlcvChange]);
-
   const toggleIndicator = React.useCallback((indicator: ChartIndicatorId) => {
     setEnabledIndicators((current) =>
       current.includes(indicator)

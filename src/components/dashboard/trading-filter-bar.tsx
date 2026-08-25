@@ -125,11 +125,11 @@ function OhlcvStat({
   tone?: "neutral" | "positive" | "negative";
 }) {
   return (
-    <span className="flex items-center gap-1 whitespace-nowrap">
+    <span className="flex min-w-0 items-center justify-center gap-1 whitespace-nowrap">
       <span className="text-white/60 text-sm font-medium">{label}</span>
       <span
         className={cn(
-          "text-sm font-medium",
+          "inline-block text-right text-sm font-medium tabular-nums",
           tone === "positive" && "text-primary",
           tone === "negative" && "text-destructive",
           tone === "neutral" && "text-white",
@@ -240,7 +240,7 @@ export function TradingFilterBar({
         })} */}
       </div>
 
-      <div className="flex flex-wrap items-center min-[1500px]:justify-end gap-2.5 text-xs tabular-nums min-[1500px]:w-auto min-[1500px]:min-w-[235px]">
+      <div className="flex flex-wrap min-w-[360px] grid-cols-4 items-center gap-2.5 text-xs tabular-nums">
         <OhlcvStat label="O" value={formatTradingPrice(ohlcv.open, selectedAssetSymbol, selectedAssetClass)} />
         <OhlcvStat label="H" value={formatTradingPrice(ohlcv.high, selectedAssetSymbol, selectedAssetClass)} tone="positive" />
         <OhlcvStat label="L" value={formatTradingPrice(ohlcv.low, selectedAssetSymbol, selectedAssetClass)} tone="negative" />
