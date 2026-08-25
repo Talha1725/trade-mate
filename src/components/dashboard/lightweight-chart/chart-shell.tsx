@@ -147,12 +147,6 @@ export function ChartShell({ context }: { context: ChartShellContext }) {
                 <button type="button" title="Delete drawing" aria-label="Delete drawing" onClick={deleteSelectedDrawing} className="rounded px-2 py-1 text-[11px] text-red-300 hover:bg-red-500/20">Delete</button>
               </div>
             ) : null}
-            {lastDisplayedClose !== null ? (
-              <div
-                ref={priceLabelRef}
-                className="pointer-events-none absolute right-0 z-10 hidden -translate-y-1/2 rounded-[4px] border-[1.36px] border-[#22E0A2] bg-[#22E0A2] px-2 py-0.5 text-xs font-medium text-white"
-              />
-            ) : null}
           </div>
 
           <div className="h-px w-full overflow-hidden border-t border-white/10 opacity-0" aria-hidden="true">

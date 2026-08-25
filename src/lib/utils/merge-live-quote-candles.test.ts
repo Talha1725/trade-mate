@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { mergeLiveQuoteIntoCandles } from "@/lib/utils/merge-live-quote-candles";
+import { getBucketTime, mergeLiveQuoteIntoCandles } from "@/lib/utils/merge-live-quote-candles";
 import type { ChartCandle } from "@/types/eodhd";
 
 const baseCandles: ChartCandle[] = [
@@ -100,5 +100,11 @@ describe("mergeLiveQuoteIntoCandles", () => {
     );
 
     expect(merged).toBe(baseCandles);
+  });
+
+  it("uses Monday UTC buckets for weekly live quotes", () => {
+    expect(
+      getBucketTime(Date.parse("2026-08-25T09:15:00.000Z") / 1000, "W"),
+    ).toBe(Date.parse("2026-08-24T00:00:00.000Z") / 1000);
   });
 });

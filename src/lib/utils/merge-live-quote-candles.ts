@@ -22,6 +22,19 @@ export function getBucketSeconds(timeframe: TradingTimeframe) {
   }
 }
 
+const WEEK_SECONDS = 7 * 24 * 60 * 60;
+const MONDAY_UTC_ANCHOR_SECONDS = Date.UTC(1970, 0, 5) / 1000;
+
+export function getBucketTime(timestampSeconds: number, timeframe: TradingTimeframe) {
+  const bucketSeconds = getBucketSeconds(timeframe);
+
+  if (timeframe === "W") {
+    return Math.floor((timestampSeconds - MONDAY_UTC_ANCHOR_SECONDS) / WEEK_SECONDS) * WEEK_SECONDS + MONDAY_UTC_ANCHOR_SECONDS;
+  }
+
+  return Math.floor(timestampSeconds / bucketSeconds) * bucketSeconds;
+}
+
 function buildLiveCandle(
   bucketTime: number,
   quote: ChartLiveQuote,
@@ -54,9 +67,9 @@ export function mergeLiveQuoteIntoCandles(
   }
 
   const timestampSeconds = Math.floor(providerTime / 1000);
-  const bucketTime = Math.floor(timestampSeconds / bucketSeconds) * bucketSeconds;
+  const bucketTime = getBucketTime(timestampSeconds, timeframe);
   const lastCandle = candles[candles.length - 1];
-  const nowBucketTime = Math.floor(Math.floor(Date.now() / 1000) / bucketSeconds) * bucketSeconds;
+  const nowBucketTime = getBucketTime(Math.floor(Date.now() / 1000), timeframe);
 
   if (lastCandle && bucketTime < lastCandle.time) {
     return candles;
