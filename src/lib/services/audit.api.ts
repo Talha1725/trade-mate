@@ -1,22 +1,15 @@
-import { ROUTES } from "@/constant/routes";
+import { ROUTES } from "@/constants/routes";
 import { get } from "@/lib/utils/api";
 import type { AuditLogEntry, AuditApiQuery, PaginatedAuditResponse } from "@/types/admin";
 import { formatNewYorkDateTime } from "@/lib/utils/date-time";
-
-const ACTION_MAP: Record<string, string> = {
-  "Inject Trade": "admin.trade_create",
-  "Close Position": "admin.trade_delete",
-  "Account Update": "admin.provision_user",
-  "Bulk Push": "admin.trade_bulk_push",
-  "Modify Trade": "admin.trade_update",
-};
+import { AUDIT_ACTION_MAP } from "@/constants/audit";
 
 function mapAuditAction(action?: string) {
   if (!action || action === "All") {
     return undefined;
   }
 
-  return ACTION_MAP[action] ?? action;
+  return AUDIT_ACTION_MAP[action] ?? action;
 }
 
 export const auditApi = {

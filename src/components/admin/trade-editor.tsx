@@ -12,7 +12,7 @@ import { Edit2Icon, TrashIcon, PlusIcon, SearchIcon } from "lucide-react";
 import { accountsApi } from "@/lib/services/accounts.api";
 import { post, patch, del } from "@/lib/utils/api";
 import { useServerTablePagination } from "@/hooks/use-server-table-pagination";
-import { ROUTES } from "@/constant/routes";
+import { ROUTES } from "@/constants/routes";
 import type { Trade, TradeEditorProps, TradeStatusFilter } from "@/types/trade";
 import { toast } from "sonner";
 

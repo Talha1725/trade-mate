@@ -1,119 +1,14 @@
 "use client";
-
-import { CirclePlayIcon, Star } from "lucide-react";
-
 import { CompareAssetsDropdown } from "@/components/dashboard/compare-assets-dropdown";
-import { IndicatorsDropdown } from "@/components/dashboard/indicators-dropdown";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/dashboard/ui/select";
-import { AssetIcon } from "@/components/shared/asset-icon";
-import { formatTradingPrice } from "@/components/shared/trading-table-cells";
+import { formatTradingPrice } from "@/lib/utils/price-formatters";
 import { useAccountWishlist } from "@/hooks/use-account-wishlist";
 import { useResolvedAccountNumber } from "@/hooks/use-resolved-account-number";
 import { TRADING_TIMEFRAMES } from "@/constants/trading-timeframes";
-import { getMarketPricePrecision } from "@/lib/utils/market-price";
+import { formatPercent, formatSignedChange, formatVolume } from "@/lib/utils/market-formatters";
 import { cn } from "@/lib/utils";
 import type {
-  TradingFilterBarAction,
-  TradingFilterBarAsset,
   TradingFilterBarProps,
 } from "@/types/trading-filter-bar";
-
-const FILTER_BAR_ACTIONS = [
-  { id: "replay", label: "Replay" },
-] as const satisfies ReadonlyArray<TradingFilterBarAction>;
-
-const ACTION_ICON_MAP = {
-  replay: CirclePlayIcon,
-} as const;
-
-function formatSignedChange(value: number, symbol?: string) {
-  const precision = getMarketPricePrecision(symbol ?? "");
-  const prefix = value >= 0 ? "+" : "";
-  return `${prefix}${value.toLocaleString("en-US", {
-    minimumFractionDigits: precision,
-    maximumFractionDigits: precision,
-  })}`;
-}
-
-function formatPercent(value: number) {
-  const prefix = value >= 0 ? "+" : "";
-  return `${prefix}${value.toFixed(2)}%`;
-}
-
-function formatVolume(value: number) {
-  if (value >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(2)}M`;
-  }
-
-  if (value >= 1_000) {
-    return `${(value / 1_000).toFixed(2)}K`;
-  }
-
-  return value.toLocaleString("en-US");
-}
-
-function AssetOptionLabel({ asset }: { asset: TradingFilterBarAsset }) {
-  return (
-    <span className="flex items-center gap-2">
-      <AssetIcon symbol={asset.symbol} label={asset.label} size={20} />
-      <span>{asset.label}</span>
-    </span>
-  );
-}
-
-function AssetDropdownOption({
-  asset,
-  isInWatchlist,
-  isDisabled,
-  onWatchlistToggle,
-}: {
-  asset: TradingFilterBarAsset;
-  isInWatchlist: boolean;
-  isDisabled?: boolean;
-  onWatchlistToggle?: (assetId: string) => void;
-}) {
-  return (
-    <span className="flex w-full min-w-0 items-center gap-2">
-      <span className="flex min-w-0 flex-1 items-center gap-2">
-        <AssetIcon symbol={asset.symbol} label={asset.label} size={20} />
-        <span className="truncate">{asset.label}</span>
-      </span>
-      <button
-        type="button"
-        disabled={isDisabled}
-        aria-label={isInWatchlist ? `Remove ${asset.label} from watchlist` : `Add ${asset.label} to watchlist`}
-        className={cn(
-          "pointer-events-auto shrink-0 rounded-md p-1 transition-colors",
-          isDisabled
-            ? "cursor-not-allowed text-white/30"
-            : "cursor-pointer text-white/60 hover:bg-white/10 hover:text-primary",
-        )}
-        onPointerDown={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-        }}
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          onWatchlistToggle?.(asset.id);
-        }}
-      >
-        <Star
-          className={cn(
-            "size-4",
-            isInWatchlist ? "fill-primary text-primary" : "text-white/60",
-          )}
-        />
-      </button>
-    </span>
-  );
-}
 
 function OhlcvStat({
   label,

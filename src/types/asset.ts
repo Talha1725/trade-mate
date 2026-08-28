@@ -7,9 +7,9 @@ export type AssetRecord = {
   label: string;
   symbol: string;
   category: AssetCategory;
-  contractSize?: number;
-  quoteCurrency?: string;
-  leverage?: number;
+  contractSize: number;
+  quoteCurrency: string;
+  leverage: number;
   isActive: boolean;
   sortOrder: number;
   createdAt: ISODateString;

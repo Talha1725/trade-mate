@@ -1,7 +1,6 @@
 import { cn } from "@/lib/utils";
 import type { GradientHorizontalProgressProps } from "@/types/gradient-horizontal-progress";
-
-const GRADIENT_FILL = "linear-gradient(180deg, #0CE9A0 0%, #108961 100%)";
+import { GRADIENT_PROGRESS_FILL } from "@/constants/progress";
 
 export function GradientHorizontalProgress({
   value,
@@ -9,7 +8,7 @@ export function GradientHorizontalProgress({
   rightLabel,
   className,
   trackClassName,
-  fill = GRADIENT_FILL,
+  fill = GRADIENT_PROGRESS_FILL,
 }: GradientHorizontalProgressProps) {
   const clampedValue = Math.min(100, Math.max(0, value));
   const hasFooter = Boolean(leftLabel || rightLabel);

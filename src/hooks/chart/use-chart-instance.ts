@@ -2,35 +2,18 @@
 
 import * as React from "react";
 import { CandlestickSeries, ColorType, CrosshairMode, LineSeries, LineStyle, createChart, type IChartApi, type ISeriesApi, type UTCTimestamp } from "lightweight-charts";
-import { buildIndicatorSeries, calculateEma, calculateVwap, type VwapCalculationSettings } from "@/lib/utils/chart-indicators";
+import { buildIndicatorSeries, calculateEma, calculateVwap } from "@/lib/utils/chart-indicators";
 import { getBucketSeconds, mergeLiveQuoteIntoCandles } from "@/lib/utils/merge-live-quote-candles";
-import type { ChartCandle, ChartLiveQuote } from "@/types/eodhd";
-import type { TradingTimeframe } from "@/types/trading-filter-bar";
-import { CANDLE_DOWN, CANDLE_UP, CHART_BACKGROUND, COMPARE_LINE_COLOR, EMA50_COLOR, GRID_COLOR, SUB_CHART_AXIS_COLOR, SUB_CHART_X_AXIS_FONT_SIZE, TEXT_COLOR, VWAP_BAND_COLORS, VWAP_COLOR } from "@/constants/chart/lightweight-chart";
+import type { ChartCandle } from "@/types/eodhd";
+import { CANDLE_DOWN, CANDLE_UP, CHART_BACKGROUND, COMPARE_LINE_COLOR, EMA50_COLOR, GRID_COLOR, INITIAL_VISIBLE_RANGE_DAYS, SUB_CHART_AXIS_COLOR, SUB_CHART_X_AXIS_FONT_SIZE, TEXT_COLOR, VWAP_BAND_COLORS, VWAP_COLOR } from "@/constants/chart/lightweight-chart";
 import { formatChartPrice, getChartPriceFormat } from "@/lib/utils/chart/formatters";
+import type { ChartInstanceOptions } from "@/types/chart/chart-instance";
 
 function toSeriesTime(time: number) { return time as UTCTimestamp; }
 
 function getLastPriceColor(candle: ChartCandle) {
   return candle.close >= candle.open ? CANDLE_UP : CANDLE_DOWN;
 }
-
-export interface ChartInstanceOptions {
-  mainContainerRef: React.RefObject<HTMLDivElement | null>; subContainerRef: React.RefObject<HTMLDivElement | null>;
-  mainChartRef: React.MutableRefObject<IChartApi | null>; subChartRef: React.MutableRefObject<IChartApi | null>;
-  mainSeriesRef: React.MutableRefObject<ISeriesApi<"Candlestick" | "Line" | "Area">[]>; subSeriesRef: React.MutableRefObject<ISeriesApi<"Area">[]>;
-  candleSeriesRef: React.MutableRefObject<ISeriesApi<"Candlestick"> | null>; emaSeriesRef: React.MutableRefObject<ISeriesApi<"Line"> | null>; vwapSeriesRef: React.MutableRefObject<ISeriesApi<"Line"> | null>;
-  vwapUpperSeriesRefs: React.MutableRefObject<Array<ISeriesApi<"Line"> | null>>; vwapLowerSeriesRefs: React.MutableRefObject<Array<ISeriesApi<"Line"> | null>>;
-  priceLineRef: React.MutableRefObject<ReturnType<ISeriesApi<"Candlestick">["createPriceLine"]> | null>; priceLabelRef: React.RefObject<HTMLDivElement | null>;
-  lastCloseRef: React.MutableRefObject<number | null>; initialViewKeyRef: React.MutableRefObject<string | null>;
-  symbol: string; timeframe: TradingTimeframe; normalizedCompareSymbol: string | null; displayCandles: ChartCandle[]; displayCompareCandles: ChartCandle[];
-  compareTrack: Array<{ time: number; value: number }>; enabledIndicators: string[]; vwap: Array<{ time: number; value: number; upperBands: Array<number | null>; lowerBands: Array<number | null> }>;
-  vwapSettings: VwapCalculationSettings; ema: Array<{ time: number; value: number }>;
-  effectiveLiveQuote: ChartLiveQuote | null; candles: ChartCandle[]; chartDataKey: string; overlayRevision: React.Dispatch<React.SetStateAction<number>>; indicatorPeriods: { ema: number };
-  syncLastPriceLabel: (series: ISeriesApi<"Candlestick">, price: number, label: HTMLDivElement | null, symbol: string) => void;
-  onOhlcvChange?: (candle: ChartCandle | null) => void;
-}
-
 export function useChartInstance(options: ChartInstanceOptions) {
   const { mainContainerRef, subContainerRef, mainChartRef, subChartRef, mainSeriesRef, subSeriesRef, candleSeriesRef, emaSeriesRef, vwapSeriesRef, vwapUpperSeriesRefs: vwapUpperSeriesRefsRef, vwapLowerSeriesRefs: vwapLowerSeriesRefsRef, priceLineRef, priceLabelRef, lastCloseRef, initialViewKeyRef, symbol, timeframe, normalizedCompareSymbol, displayCandles, displayCompareCandles, compareTrack, enabledIndicators, vwap, vwapSettings, ema, effectiveLiveQuote, candles, chartDataKey, overlayRevision, indicatorPeriods, syncLastPriceLabel, onOhlcvChange } = options;
   const [chartReady, setChartReady] = React.useState(false);
@@ -438,7 +421,7 @@ export function useChartInstance(options: ChartInstanceOptions) {
 
     if (initialViewKeyRef.current !== viewKey && candles.length > 0) {
       const bucketSeconds = getBucketSeconds(timeframe);
-      const sixDays = 6 * 24 * 60 * 60;
+      const sixDays = INITIAL_VISIBLE_RANGE_DAYS * 24 * 60 * 60;
       const visibleBars = Math.max(1, Math.ceil(sixDays / bucketSeconds));
       const lastIndex = displayCandles.length - 1;
       const from = Math.max(0, lastIndex - visibleBars + 1);

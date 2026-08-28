@@ -1,12 +1,4 @@
-export type StablePositionLike = {
-  id: string;
-  status: string;
-};
-
-type StablePositionMergeOptions = {
-  closedIds?: Set<string>;
-  missingThreshold?: number;
-};
+import type { StablePositionLike, StablePositionMergeOptions } from "@/types/stable-positions";
 
 export function mergeStablePositions<T extends StablePositionLike>(
   current: T[],

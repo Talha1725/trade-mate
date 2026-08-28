@@ -1,4 +1,4 @@
-import { DISPLAY_TIME_ZONE } from "@/constant/timezone";
+import { DISPLAY_TIME_ZONE } from "@/constants/timezone";
 
 export function formatNewYorkDateTime(value: string | number | Date | null | undefined): string {
   if (value == null || value === "") return "-";

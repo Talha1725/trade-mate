@@ -1,43 +1,6 @@
 import type { ChartCandle, ChartIndicatorPoint } from "@/types/eodhd";
-
-export type VwapSource = "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4";
-export type VwapAnchorPeriod = "session" | "week" | "month" | "quarter" | "year" | "decade" | "century";
-export type VwapBandMode = "standard-deviation" | "percentage";
-
-export type VwapBandSettings = {
-  visible: boolean;
-  multiplier: number;
-};
-
-export type VwapCalculationSettings = {
-  source: VwapSource;
-  anchorPeriod: VwapAnchorPeriod;
-  bandMode: VwapBandMode;
-  bands: [VwapBandSettings, VwapBandSettings, VwapBandSettings];
-};
-
-export type VwapPoint = {
-  time: number;
-  value: number;
-  source: number;
-  cumulativeVolume: number;
-  cumulativePriceVolume: number;
-  standardDeviation: number | null;
-  anchorId: string;
-  upperBands: Array<number | null>;
-  lowerBands: Array<number | null>;
-};
-
-export const DEFAULT_VWAP_CALCULATION: VwapCalculationSettings = {
-  source: "hlc3",
-  anchorPeriod: "session",
-  bandMode: "standard-deviation",
-  bands: [
-    { visible: true, multiplier: 1 },
-    { visible: false, multiplier: 2 },
-    { visible: false, multiplier: 3 },
-  ],
-};
+import type { VwapAnchorPeriod, VwapCalculationSettings, VwapPoint, VwapSource } from "@/types/chart/indicators";
+import { DEFAULT_VWAP_CALCULATION } from "@/constants/chart/indicators";
 
 export function getVwapSourcePrice(candle: ChartCandle, source: VwapSource) {
   switch (source) {

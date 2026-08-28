@@ -1,24 +1,14 @@
-import { ROUTES } from "@/constant/routes";
+import { ROUTES } from "@/constants/routes";
 import { get, patch, post } from "@/lib/utils/api";
 import type {
   SettingsOverviewResponse,
   SettingsAvatarPresignResponse,
 } from "@/types/settings";
-
-export type UpdateSettingsProfilePayload = {
-  name?: string;
-  avatarUrl?: string | null;
-};
-
-export type UpdateSettingsPasswordPayload = {
-  currentPassword: string;
-  newPassword: string;
-};
-
-export type CreateSettingsAvatarPresignPayload = {
-  fileName: string;
-  contentType: string;
-};
+import type {
+  CreateSettingsAvatarPresignPayload,
+  UpdateSettingsPasswordPayload,
+  UpdateSettingsProfilePayload,
+} from "@/types/settings-api";
 
 export const settingsApi = {
   getOverview(accountId?: string | null): Promise<SettingsOverviewResponse> {

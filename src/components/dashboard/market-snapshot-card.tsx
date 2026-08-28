@@ -1,7 +1,8 @@
 "use client";
 
 import { SparklineChart } from "@/components/dashboard/sparkline-chart";
-import { formatTradingPrice } from "@/components/shared/trading-table-cells";
+import { formatTradingPrice } from "@/lib/utils/price-formatters";
+import { formatPercent } from "@/lib/utils/market-formatters";
 import { cn } from "@/lib/utils";
 import type {
   MarketSnapshotBadge,
@@ -10,11 +11,6 @@ import type {
 } from "@/types/market-snapshot";
 import { Loader2 } from "lucide-react";
 import Image from "next/image";
-
-function formatPercent(value: number) {
-  const prefix = value >= 0 ? "+" : "";
-  return `${prefix}${value.toFixed(2)}%`;
-}
 
 function SnapshotBadge({ badge }: { badge: MarketSnapshotBadge }) {
   const Icon = badge.icon === "momentum" ? "/images/momentum.svg" : "/images/hearts.svg";

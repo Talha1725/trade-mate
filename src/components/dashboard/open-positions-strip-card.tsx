@@ -11,19 +11,7 @@ import type {
   PositionCardProps,
 } from "@/types/open-positions-strip";
 import Link from "next/link";
-
-function formatPnl(value: number) {
-  const prefix = value >= 0 ? "+" : "-";
-  return `${prefix}$${Math.abs(value).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-function formatPercent(value: number) {
-  const prefix = value >= 0 ? "+" : "-";
-  return `${prefix}${Math.abs(value).toFixed(2)}%`;
-}
+import { formatSignedCurrency, formatSignedPercent } from "@/lib/utils/number-formatters";
 
 function formatPips(item: OpenPositionStripItem) {
   if (item.entryPrice == null || item.markPrice == null) return "—";
@@ -70,10 +58,10 @@ function PositionCard({ item, onClosePosition, onModifyProtection }: PositionCar
         </div>
         <div className="min-w-0 text-left">
           <div className="text-sm md:text-lg font-medium text-white">{formatPrice(item.markPrice)}</div>
-          <div className={cn("text-[10px] md:text-xs font-medium", isPositive ? "text-primary" : "text-destructive")}>{formatPercent(item.pnlPercent)}</div>
+          <div className={cn("text-[10px] md:text-xs font-medium", isPositive ? "text-primary" : "text-destructive")}>{formatSignedPercent(item.pnlPercent)}</div>
         </div>
         <div className="min-w-0 text-right">
-          <div className={cn("text-sm md:text-lg font-medium", isPositive ? "text-primary" : "text-destructive")}>{formatPnl(item.pnl)}</div>
+          <div className={cn("text-sm md:text-lg font-medium", isPositive ? "text-primary" : "text-destructive")}>{formatSignedCurrency(item.pnl, "plus")}</div>
           <div className="text-[10px] md:text-xs text-white/60">{formatPips(item)}</div>
         </div>
       </div>

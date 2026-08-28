@@ -1,6 +1,6 @@
 import type * as React from "react";
 
-import type { VwapCalculationSettings, VwapPoint } from "@/lib/utils/chart-indicators";
+import type { VwapCalculationSettings, VwapPoint } from "@/types/chart/indicators";
 import type { ChartIndicatorId, ChartToolId, MagnetMode } from "@/types/lightweight-trading-chart";
 
 export type DrawingRendererContext = {

@@ -9,6 +9,9 @@ export type TradingFilterBarAsset = {
   label: string;
   symbol: string;
   category: AssetCategory;
+  contractSize: number;
+  quoteCurrency: string;
+  leverage: number;
 };
 
 export type TradingFilterBarQuote = {

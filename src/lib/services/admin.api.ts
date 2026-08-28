@@ -1,4 +1,4 @@
-import { ROUTES } from "@/constant/routes";
+import { ROUTES } from "@/constants/routes";
 import { get, patch, del } from "@/lib/utils/api";
 import type { Trade } from "@/types/trade";
 import type { AdminTradesQuery, PaginatedTradesResponse } from "@/types/admin";

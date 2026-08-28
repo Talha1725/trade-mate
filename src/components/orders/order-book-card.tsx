@@ -18,41 +18,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { formatTradingPrice } from "@/components/shared/trading-table-cells";
+import { formatUsdPrice, formatTradingPrice } from "@/lib/utils/price-formatters";
+import { formatCurrency, formatFixedPercent } from "@/lib/utils/number-formatters";
 import type {
   OrderBookCardProps,
   OrderBookRow,
   OrderBookSortOption,
 } from "@/types/order-book";
-
-const ASK_DEPTH_GRADIENT =
-  "linear-gradient(90deg, rgba(239, 68, 68, 0) 0%, rgba(239, 68, 68, 0.4) 61.19%)";
-const BID_DEPTH_GRADIENT =
-  "linear-gradient(90deg, rgba(34, 224, 162, 0.4) 0%, rgba(34, 224, 162, 0.5) 49.88%, rgba(34, 224, 162, 0) 85%)";
-const BID_DEPTH_GRADIENT_REVERSE =
-  "linear-gradient(90deg, rgba(34, 224, 162, 0) 15%, rgba(34, 224, 162, 0.5) 50.12%, rgba(34, 224, 162, 0.4) 100%)";
-
-function formatUsdPrice(value: number, symbol?: string, assetClass?: string | null) {
-  return `$${formatTradingPrice(value, symbol, assetClass)}`;
-}
-
-function formatBtcAmount(value: number) {
-  return value.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-function formatDollarAmount(value: number) {
-  return `$${value.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-function formatSpreadPercent(value: number) {
-  return `${value.toFixed(4)}%`;
-}
+import {
+  ASK_DEPTH_GRADIENT,
+  BID_DEPTH_GRADIENT,
+  BID_DEPTH_GRADIENT_REVERSE,
+} from "@/constants/order-book";
 
 function sortOrderBookRows(
   rows: OrderBookRow[],
@@ -109,7 +86,7 @@ function AskDepthCell({
         }}
       />
       <span className="relative z-10 block text-center text-sm text-white">
-        {formatDollarAmount(size)}
+        {formatCurrency(size, "$")}
       </span>
     </TableCell>
   );
@@ -134,7 +111,7 @@ function BidDepthCell({
         }}
       />
       <span className="relative z-10 block text-center text-sm text-white">
-        {formatDollarAmount(size)}
+        {formatCurrency(size, "$")}
       </span>
     </TableCell>
   );
@@ -252,7 +229,7 @@ export function OrderBookCard({
                   </TableCell>
                   <AskDepthCell size={notionalSize} depthPercent={row.barPercent} />
                   <TableCell className="px-3 py-2.5 text-right text-sm text-white/60">
-                    {formatBtcAmount(row.total)}
+                    {formatCurrency(row.total)}
                   </TableCell>
                 </TableRow>
               );
@@ -281,7 +258,7 @@ export function OrderBookCard({
                     reverseGradient={isLastRow}
                   />
                   <TableCell className="px-3 py-2.5 w-[140px]! text-right text-sm text-white/60">
-                    {formatBtcAmount(row.total)}
+                    {formatCurrency(row.total)}
                   </TableCell>
                 </TableRow>
               );
@@ -302,7 +279,7 @@ export function OrderBookCard({
         </div>
         <p className="text-sm text-white/60">
           Spread {formatTradingPrice(snapshot.spread, symbol ?? undefined, assetClass)} (
-          {formatSpreadPercent(snapshot.spreadPercent)})
+            {formatFixedPercent(snapshot.spreadPercent, 4)})
         </p>
       </div>
     </section>

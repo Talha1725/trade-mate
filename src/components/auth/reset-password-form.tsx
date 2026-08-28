@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
-import { isValidPassword, PASSWORD_REQUIREMENTS } from "@/constant/auth";
+import { isValidPassword, PASSWORD_REQUIREMENTS } from "@/constants/auth";
 import { loginApi } from "@/lib/services/auth.api";
 
 export function ResetPasswordForm() {

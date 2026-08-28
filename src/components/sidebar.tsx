@@ -22,6 +22,7 @@ import { SIDEBAR_ICONS } from "@/lib/mock-data/sidebar-icons";
 import { useSelectedAccountStore } from "@/lib/stores/account-store";
 import { useLiveAccountSnapshotStore } from "@/lib/stores/live-account-snapshot-store";
 import { usePriceStream } from "@/hooks/use-price-stream";
+import { useSyncedTradingAssets } from "@/hooks/use-synced-trading-assets";
 import type { PriceSocketPortfolioMessage } from "@/types/price";
 import type { PortfolioPosition } from "@/types/dashboard";
 import { formatTradingSymbolLabel, getTradingSymbolAliases } from "@/lib/utils/market-symbol-icon";
@@ -29,22 +30,7 @@ import { getSupplementalQuoteSymbol } from "@/lib/utils/instrument-spec";
 import { mergeLivePositions } from "@/lib/utils/live-portfolio";
 import { mapPortfolioPositionToPortfolioRow } from "@/lib/utils/trader-data";
 import { useLivePriceStore } from "@/lib/stores/live-price-store";
-
-function formatCurrency(value?: number) {
-  return `$${(value ?? 0).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-function formatSignedCurrency(value?: number) {
-  const amount = value ?? 0;
-  const prefix = amount >= 0 ? "+$" : "-$";
-  return `${prefix}${Math.abs(amount).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
+import { formatCurrency, formatSignedCurrency } from "@/lib/utils/number-formatters";
 
 function toNumber(value: string | number | null | undefined) {
   if (value == null) {
@@ -233,6 +219,7 @@ export function Sidebar({ className }: { className?: string }) {
   const [showBalance, setShowBalance] = React.useState(true);
   const selectedAccountId = useSelectedAccountStore((state) => state.selectedAccountId);
   const { data: accountSummary, refetch: refetchAccountSummary } = useAccountSummary(selectedAccountId);
+  const { data: tradingAssets = [] } = useSyncedTradingAssets();
   const liveSummariesByAccountId = useLiveAccountSnapshotStore((state) => state.summariesByAccountId);
   const liveOpenOrderCountsByAccountId = useLiveAccountSnapshotStore((state) => state.openOrderCountsByAccountId);
   const setAccountSummary = useLiveAccountSnapshotStore((state) => state.setAccountSummary);
@@ -267,14 +254,14 @@ export function Sidebar({ className }: { className?: string }) {
       }
 
       symbols.add(position.symbol);
-      const supplemental = getSupplementalQuoteSymbol(position.symbol);
+      const supplemental = getSupplementalQuoteSymbol(position.symbol, tradingAssets);
       if (supplemental) {
         symbols.add(supplemental);
       }
     }
 
     return Array.from(symbols);
-  }, [positionsForLiveData]);
+  }, [positionsForLiveData, tradingAssets]);
   const liveOpenPnl = React.useMemo(() => {
     if (!positionsForLiveData) {
       return null;
@@ -285,10 +272,10 @@ export function Sidebar({ className }: { className?: string }) {
       .reduce((total, position) => {
         const aliases = new Set(getTradingSymbolAliases(position.symbol));
         const quote = Object.values(liveQuotes).find((item) => aliases.has(item.symbol.toUpperCase())) ?? null;
-        const row = mapPortfolioPositionToPortfolioRow(position, quote, null, liveQuotePrices);
+        const row = mapPortfolioPositionToPortfolioRow(position, quote, null, liveQuotePrices, tradingAssets);
         return total + row.pnl;
       }, 0);
-  }, [liveQuotePrices, liveQuotes, positionsForLiveData]);
+  }, [liveQuotePrices, liveQuotes, positionsForLiveData, tradingAssets]);
   const displayedOpenPnl = liveOpenPnl ?? activeSummary?.floatingPnl;
   const livePositionsByAccountIdRef = React.useRef<Record<string, PortfolioPosition[]>>({});
   const forcePositionRefreshRef = React.useRef(false);
@@ -541,7 +528,7 @@ export function Sidebar({ className }: { className?: string }) {
             </span>
             <div className="flex items-center justify-between">
               <span className="text-[24px] font-medium leading-6 text-white">
-                {showBalance ? formatCurrency(activeSummary?.balance) : "•••••••"}
+                {showBalance ? formatCurrency(activeSummary?.balance ?? 0, "$") : "•••••••"}
               </span>
               <button
                 onClick={() => setShowBalance(!showBalance)}
@@ -563,7 +550,7 @@ export function Sidebar({ className }: { className?: string }) {
                   dailyPnlIsPositive ? "text-primary" : dailyPnlIsNegative ? "text-destructive" : "text-white/60",
                 )}
               >
-                {formatCurrency(dailyPnlValue)}
+                {formatCurrency(dailyPnlValue, "$")}
               </span>
             </div>
             <div className="w-full bg-neutral-800 h-1.5 rounded-full overflow-hidden mt-1.5">
@@ -583,7 +570,7 @@ export function Sidebar({ className }: { className?: string }) {
               iconSrc={SIDEBAR_ICONS.openPnl}
               label="Open P&L"
               subLabel="Today"
-              value={formatSignedCurrency(displayedOpenPnl)}
+              value={formatSignedCurrency(displayedOpenPnl ?? 0, "plus")}
               valueClassName={cn(
                 (displayedOpenPnl ?? 0) > 0
                   ? "text-primary"

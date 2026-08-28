@@ -3,45 +3,7 @@ import type { TradingViewAdvancedChartConfig } from "@/types/trading-view";
 import { resolveForexPairIcon } from "@/lib/utils/forex-flag";
 import { normalizeTradingSymbol } from "@/lib/utils/market-symbol-icon";
 import { resolveCryptoIconCode } from "@/lib/utils/resolve-crypto-icon";
-
-export type { TradingViewAdvancedChartConfig };
-
-const ADVANCED_CHART_EMBED_HOST = "https://www.tradingview-widget.com";
-
-const TRADING_VIEW_SYMBOL_MAP: Record<string, string> = {
-  BTCUSDT: "BINANCE:BTCUSDT",
-  ETHUSDT: "BINANCE:ETHUSDT",
-  SOLUSDT: "BINANCE:SOLUSDT",
-  BNBUSDT: "BINANCE:BNBUSDT",
-  XRPUSDT: "BINANCE:XRPUSDT",
-  ADAUSDT: "BINANCE:ADAUSDT",
-  DOGEUSDT: "BINANCE:DOGEUSDT",
-  AVAXUSDT: "BINANCE:AVAXUSDT",
-  LINKUSDT: "BINANCE:LINKUSDT",
-  TONUSDT: "KRAKEN:TONUSDT",
-  TRXUSDT: "BINANCE:TRXUSDT",
-  DOTUSDT: "BINANCE:DOTUSDT",
-  LTCUSDT: "BINANCE:LTCUSDT",
-  SUIUSDT: "BINANCE:SUIUSDT",
-  TONUSD: "KRAKEN:TONUSD",
-  EURUSD: "OANDA:EURUSD",
-  GBPUSD: "OANDA:GBPUSD",
-  USDJPY: "OANDA:USDJPY",
-  USDCHF: "OANDA:USDCHF",
-  AUDUSD: "OANDA:AUDUSD",
-  USDCAD: "OANDA:USDCAD",
-  NZDUSD: "OANDA:NZDUSD",
-  XAUUSD: "OANDA:XAUUSD",
-  XBRUSD: "TVC:UKOIL",
-  SPX500: "FOREXCOM:SPX500",
-  EURJPY: "OANDA:EURJPY",
-  GBPJPY: "OANDA:GBPJPY",
-  BTCUSD: "BINANCE:BTCUSDT",
-  ETHUSD: "BINANCE:ETHUSDT",
-  SOLUSD: "BINANCE:SOLUSDT",
-  XRPUSD: "BINANCE:XRPUSDT",
-  ADAUSD: "BINANCE:ADAUSDT",
-};
+import { ADVANCED_CHART_EMBED_HOST, TRADING_VIEW_SYMBOL_MAP } from "@/constants/trading-view";
 
 function resolveCryptoTradingViewSymbol(normalized: string) {
   if (normalized.endsWith("USDT")) {

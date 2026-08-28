@@ -1,20 +1,7 @@
-import { ROUTES } from "@/constant/routes";
+import { ROUTES } from "@/constants/routes";
 import { get, patch } from "@/lib/utils/api";
 import type { OrderOverviewResponse } from "@/types/orders";
-
-export type TradeProtectionModification = {
-  positionId: string;
-  stopLoss: number | null;
-  takeProfit: number | null;
-};
-
-export type TradeProtectionModificationResponse = {
-  sync: {
-    status: "PENDING" | "SENT" | "FAILED" | "SKIPPED";
-    eventId: string | null;
-    lastError?: string | null;
-  };
-};
+import type { TradeProtectionModification, TradeProtectionModificationResponse } from "@/types/orders-api";
 
 export const ordersApi = {
   getOverview(

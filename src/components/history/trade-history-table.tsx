@@ -14,9 +14,8 @@ import {
 
 import { TradingSymbolCell } from "@/components/shared/trading-symbol-cell";
 import { ResponsiveTableScroll } from "@/components/shared/responsive-table-scroll";
+import { formatTradingPrice, formatTradingQty } from "@/lib/utils/price-formatters";
 import {
-  formatTradingPrice,
-  formatTradingQty,
   TRADING_TABLE_ROW_CLASS,
   TradingOrderStatusBadge,
   TradingPnlValue,

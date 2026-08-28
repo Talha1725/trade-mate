@@ -12,5 +12,8 @@ export function mapAssetRecordsToTradingFilterAssets(
       label: asset.label,
       symbol: asset.symbol,
       category: asset.category,
+      contractSize: asset.contractSize,
+      quoteCurrency: asset.quoteCurrency,
+      leverage: asset.leverage,
     }));
 }

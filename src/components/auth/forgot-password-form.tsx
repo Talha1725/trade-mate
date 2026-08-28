@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 
-import { AUTH_CONSTANTS } from "@/constant/auth";
+import { AUTH_CONSTANTS } from "@/constants/auth";
 import { loginApi } from "@/lib/services/auth.api";
 
 export function ForgotPasswordForm() {

@@ -1,4 +1,4 @@
-export const PRICE_DISPLAY_FLUSH_MS = 300;
+import { PRICE_DISPLAY_FLUSH_MS } from "@/constants/price-stream";
 
 export function createLatestValueBuffer<T>(
   getKey: (value: T) => string,

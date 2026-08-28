@@ -8,9 +8,10 @@ import { TradingTableCard } from "@/components/shared/trading-table-card";
 import { TableRowActionsMenu } from "@/components/shared/table-row-actions-menu";
 import { SortableColumnHeader } from "@/components/sortable-column-header";
 import { AssetIcon } from "@/components/shared/asset-icon";
-import { formatTradingPrice } from "@/components/shared/trading-table-cells";
+import { formatTradingPrice } from "@/lib/utils/price-formatters";
 import { cn } from "@/lib/utils";
 import { formatNewYorkDateTime } from "@/lib/utils/date-time";
+import { formatSignedCurrency, formatSignedPercent } from "@/lib/utils/number-formatters";
 import type {
   PortfolioOpenPositionRisk,
   PortfolioOpenPositionRow,
@@ -23,27 +24,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 function formatSize(value: number, unit: string) {
   const decimals = unit === "XRP" ? 4 : 4;
   return value.toFixed(decimals);
-}
-
-function formatSignedCurrency(value: number) {
-  if (value === 0) {
-    return "-$0.00";
-  }
-
-  const prefix = value > 0 ? "+$" : "-$";
-  return `${prefix}${Math.abs(value).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-function formatSignedPercent(value: number) {
-  if (value === 0) {
-    return "-0.00%";
-  }
-
-  const prefix = value > 0 ? "+" : "-";
-  return `${prefix}${Math.abs(value).toFixed(2)}%`;
 }
 
 function formatOpenDate(value: string | null | undefined) {
@@ -100,7 +80,7 @@ function PnlValue({ value, className }: { value: number; className?: string }) {
 
   return (
     <span className={cn("font-medium", isPositive ? "text-primary" : "text-destructive", className)}>
-      {formatSignedCurrency(value)}
+      {formatSignedCurrency(value, "minus")}
     </span>
   );
 }
@@ -110,7 +90,7 @@ function PnlPercentValue({ value }: { value: number }) {
 
   return (
     <span className={cn("font-medium", isPositive ? "text-primary" : "text-destructive")}>
-      {formatSignedPercent(value)}
+      {formatSignedPercent(value, "minus")}
     </span>
   );
 }

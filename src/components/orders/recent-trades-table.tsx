@@ -13,7 +13,6 @@ import {
 
 import { ResponsiveTableScroll } from "@/components/shared/responsive-table-scroll";
 import { TradingSymbolCell } from "@/components/shared/trading-symbol-cell";
-import { formatTradingPrice } from "@/components/shared/trading-table-cells";
 import {
   Table,
   TableBody,
@@ -25,24 +24,14 @@ import {
 import { mockRecentTrades } from "@/lib/mock-data/orders-recent-trades";
 import { mockStrategyPerformanceRows } from "@/lib/mock-data/strategy-performance";
 import { cn } from "@/lib/utils";
+import { formatFixedPercent, formatSignedCurrency } from "@/lib/utils/number-formatters";
+import { formatUsdPrice } from "@/lib/utils/price-formatters";
 import type {
   RecentTradeRow,
   RecentTradesTableProps,
 } from "@/types/orders-recent-trades";
 import type { StrategyPerformanceRow } from "@/types/strategy-performance";
 import { SortableColumnHeader } from "@/components/sortable-column-header";
-
-function formatUsdPrice(value: number, symbol?: string) {
-  return `$${formatTradingPrice(value, symbol)}`;
-}
-
-function formatSignedCurrency(value: number) {
-  const prefix = value >= 0 ? "+" : "-";
-  return `${prefix}$${Math.abs(value).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
 
 function formatProfitFactor(value: number) {
   if (!Number.isFinite(value) || value <= 0) {
@@ -133,7 +122,7 @@ const strategyPerformanceColumns: ColumnDef<StrategyPerformanceRow>[] = [
                 : "text-white",
           )}
         >
-          {formatSignedCurrency(row.original.pnl)}
+          {formatSignedCurrency(row.original.pnl, "plus")}
         </span>
       );
     },
@@ -145,7 +134,7 @@ const strategyPerformanceColumns: ColumnDef<StrategyPerformanceRow>[] = [
     ),
     cell: ({ row }) => (
       <span className="text-sm whitespace-normal text-white">
-        {`${row.original.winRate.toFixed(2)}%`}
+        {formatFixedPercent(row.original.winRate)}
       </span>
     ),
   },
@@ -309,7 +298,7 @@ export function RecentTradesTable({
   const shouldShowHeaderBadge = showHeaderBadge ?? !isStrategyPerformance;
   const sectionClassName = cn(
     "min-w-0 overflow-hidden rounded-[20px] border border-white/20 bg-white/5 p-4 md:p-6",
-    isStrategyPerformance && "flex min-h-0 max-h-[500px] flex-col xl:max-h-[366px]",
+    isStrategyPerformance && "flex h-full min-h-0 flex-col",
     className,
   );
 

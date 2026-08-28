@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { PUBLIC_PATHS } from "@/constant/routes";
+import { PUBLIC_PATHS } from "@/constants/routes";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
 export function AuthenticationBoundary({

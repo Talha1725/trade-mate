@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Settings2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DEFAULT_VWAP_CALCULATION } from "@/lib/utils/chart-indicators";
+import { DEFAULT_VWAP_CALCULATION } from "@/constants/chart/indicators";
 import { VWAP_BAND_COLORS } from "@/constants/chart/lightweight-chart";
 import { formatChartPrice } from "@/lib/utils/chart/formatters";
 import type { ChartIndicatorPanelProps } from "@/types/chart/chart-component-props";

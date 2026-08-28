@@ -1,6 +1,5 @@
 import type { MarketAssetClass } from "@/types/market";
-
-const FOREX_PREFIXES = ["AUD", "CAD", "CHF", "EUR", "GBP", "JPY", "NZD", "USD"];
+import { FOREX_PREFIXES } from "@/constants/market";
 
 function isForexSymbol(symbol: string) {
   const normalized = symbol.trim().toUpperCase();
