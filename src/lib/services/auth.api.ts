@@ -1,6 +1,12 @@
 import { ROUTES } from "@/constants/routes"
 import { get, post } from "@/lib/utils/api"
-import type { AuthSession, LoginCredentials } from "@/types/auth"
+import type {
+  AuthSession,
+  ForgotPasswordResponse,
+  LoginCredentials,
+  ResetPasswordInput,
+  ResetPasswordResponse,
+} from "@/types/auth"
 import { useAuthStore } from "@/lib/stores/auth-store"
 
 export const loginApi = {
@@ -35,6 +41,16 @@ export const loginApi = {
       },
       token,
     }
+  },
+
+  async forgotPassword(email: string): Promise<ForgotPasswordResponse> {
+    return post<ForgotPasswordResponse>(ROUTES.AUTH.FORGOT_PASSWORD, {
+      email: email.trim().toLowerCase(),
+    })
+  },
+
+  async resetPassword(input: ResetPasswordInput): Promise<ResetPasswordResponse> {
+    return post<ResetPasswordResponse>(ROUTES.AUTH.RESET_PASSWORD, input)
   },
 
   async signout(): Promise<void> {

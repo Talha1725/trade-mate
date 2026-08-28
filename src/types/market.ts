@@ -45,3 +45,11 @@ export type MarketHistoryResponse = {
   candles: MarketCandle[];
   source: string;
 };
+
+export type MarketChartResponse = {
+  symbol: string;
+  timeframe: string;
+  candles: MarketCandle[];
+  source: string;
+  dataSource: "intraday" | "eod" | "mock";
+};

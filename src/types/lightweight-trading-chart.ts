@@ -1,4 +1,4 @@
-import type { ChartLiveQuote } from "@/types/eodhd";
+import type { ChartCandle, ChartLiveQuote } from "@/types/eodhd";
 import type { PortfolioPosition, PortfolioTrade } from "@/types/dashboard";
 import type { TradingTimeframe } from "@/types/trading-filter-bar";
 import type { TradeMarker } from "@/types/chart/trade-marker";
@@ -14,6 +14,7 @@ export type LightweightTradingChartProps = {
   markers?: TradeMarker[];
   showTradeMarkers?: boolean;
   onTradeMarkerClick?: (marker: TradeMarker) => void;
+  onOhlcvChange?: (candle: ChartCandle | null) => void;
   className?: string;
 };
 

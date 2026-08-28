@@ -69,11 +69,14 @@ export type EodhdAssetQuote = {
   high: number;
   low: number;
   volume: number;
+  timestamp?: string;
   dataSource: "realtime" | "eod";
 };
 
 export type ChartLiveQuote = {
   price: number;
+  /** Provider timestamp used to choose the candle bucket. */
+  timestamp?: string;
   open?: number | null;
   high?: number | null;
   low?: number | null;

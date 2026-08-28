@@ -1,35 +1,54 @@
-import type { ChartMarketDataResponse, EodhdQuotesResponse } from "@/types/eodhd";
+import { ROUTES } from "@/constants/routes";
+import { get } from "@/lib/utils/api";
+import type { MarketChartResponse, MarketQuoteResponse } from "@/types/market";
+import type { ChartMarketDataResponse, EodhdAssetQuote, EodhdQuotesResponse } from "@/types/eodhd";
 import type { TradingTimeframe } from "@/types/trading-filter-bar";
+
+function mapQuote(quote: MarketQuoteResponse["quotes"][number]): EodhdAssetQuote {
+  return {
+    symbol: quote.symbol,
+    eodhdSymbol: quote.symbol,
+    price: quote.price,
+    change: quote.change ?? 0,
+    changePercent: quote.changePercent ?? 0,
+    open: quote.price,
+    high: quote.price,
+    low: quote.price,
+    volume: 0,
+    timestamp: quote.timestamp,
+    dataSource: quote.source === "eodhd-ws" ? "realtime" : "eod",
+  };
+}
 
 export const chartMarketApi = {
   async getQuotes(symbols: string[]) {
-    const params = new URLSearchParams({
-      symbols: symbols.join(","),
+    const response = await get<MarketQuoteResponse>(ROUTES.MARKET.QUOTES, {
+      params: { symbols: symbols.join(",") },
     });
 
-    const response = await fetch(`/api/market/eodhd-quotes?${params.toString()}`);
-
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as { message?: string } | null;
-      throw new Error(payload?.message ?? "Failed to load market quotes.");
-    }
-
-    return response.json() as Promise<EodhdQuotesResponse>;
+    return {
+      quotes: Object.fromEntries(response.quotes.map((quote) => [quote.symbol.toUpperCase(), mapQuote(quote)])),
+    } satisfies EodhdQuotesResponse;
   },
 
   async getCandles(symbol: string, timeframe: TradingTimeframe) {
-    const params = new URLSearchParams({
-      symbol,
-      timeframe,
+    const response = await get<MarketChartResponse>(ROUTES.MARKET.CHART_DATA, {
+      params: { symbol, timeframe },
     });
 
-    const response = await fetch(`/api/market/eodhd-candles?${params.toString()}`);
-
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as { message?: string } | null;
-      throw new Error(payload?.message ?? "Failed to load chart candles.");
-    }
-
-    return response.json() as Promise<ChartMarketDataResponse>;
+    return {
+      symbol: response.symbol,
+      eodhdSymbol: response.symbol,
+      timeframe,
+      candles: response.candles.map((candle) => ({
+        time: Math.floor(new Date(candle.time).getTime() / 1000),
+        open: candle.open,
+        high: candle.high,
+        low: candle.low,
+        close: candle.close,
+        volume: candle.volume ?? 0,
+      })),
+      dataSource: response.dataSource === "mock" ? "eod" : response.dataSource,
+    } satisfies ChartMarketDataResponse;
   },
 };

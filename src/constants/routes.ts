@@ -3,12 +3,15 @@ export const ROUTES = {
   AUTH: {
     LOGIN:           `/api/auth/login`,
     ME:              `/api/auth/me`,
+    FORGOT_PASSWORD: `/api/auth/forgot-password`,
+    RESET_PASSWORD:  `/api/auth/reset-password`,
   },
 
   /** Market Module */
   MARKET: {
     QUOTES:         `/api/market/quotes`,
     HISTORY:        `/api/market/history`,
+    CHART_DATA:     `/api/market/chart`,
     SYMBOLS:        `/api/market/symbols`,
     SNAPSHOT:       `/api/market/snapshot`,
     BY_SYMBOL: (s: string) => `/api/market/${s}`,
@@ -105,6 +108,14 @@ export const ROUTES = {
     AUDIT:           `/api/admin/audit`,
   },
 } as const
+
+export const PUBLIC_PATHS = new Set([
+  "/",
+  "/login",
+  "/logout",
+  "/forgot-password",
+  "/reset-password",
+])
 
 export type RoutesType = typeof ROUTES
 

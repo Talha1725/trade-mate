@@ -47,4 +47,5 @@ export type ChartInstanceOptions = {
     label: HTMLDivElement | null,
     symbol: string,
   ) => void;
+  onOhlcvChange?: (candle: ChartCandle | null) => void;
 };

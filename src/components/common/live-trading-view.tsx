@@ -14,6 +14,7 @@ export function LiveTradingView({
   markers = [],
   showTradeMarkers = true,
   onTradeMarkerClick,
+  onOhlcvChange,
   className,
 }: LiveTradingViewProps) {
   return (
@@ -28,6 +29,7 @@ export function LiveTradingView({
       markers={markers}
       showTradeMarkers={showTradeMarkers}
       onTradeMarkerClick={onTradeMarkerClick}
+      onOhlcvChange={onOhlcvChange}
       className={className}
     />
   );

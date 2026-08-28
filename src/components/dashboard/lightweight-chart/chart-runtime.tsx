@@ -72,6 +72,7 @@ export function LightweightTradingChart({
   markers = [],
   showTradeMarkers = true,
   onTradeMarkerClick,
+  onOhlcvChange,
   className,
 }: LightweightTradingChartProps) {
   const mainContainerRef = React.useRef<HTMLDivElement>(null);
@@ -1137,7 +1138,7 @@ export function LightweightTradingChart({
     return () => window.cancelAnimationFrame(frame);
   }, [activeTool, draftPoints, draftPreviewPoint, drawings, overlayRevision, renderDrawing]);
 
-  useChartInstance({ mainContainerRef, subContainerRef, mainChartRef, subChartRef, mainSeriesRef, subSeriesRef, candleSeriesRef, emaSeriesRef, vwapSeriesRef, vwapUpperSeriesRefs, vwapLowerSeriesRefs, priceLineRef, priceLabelRef, lastCloseRef, initialViewKeyRef, symbol, timeframe, normalizedCompareSymbol, displayCandles, displayCompareCandles, compareTrack, enabledIndicators, vwap, vwapSettings, ema, effectiveLiveQuote, candles, chartDataKey, overlayRevision: setOverlayRevision, indicatorPeriods, syncLastPriceLabel });
+  useChartInstance({ mainContainerRef, subContainerRef, mainChartRef, subChartRef, mainSeriesRef, subSeriesRef, candleSeriesRef, emaSeriesRef, vwapSeriesRef, vwapUpperSeriesRefs, vwapLowerSeriesRefs, priceLineRef, priceLabelRef, lastCloseRef, initialViewKeyRef, symbol, timeframe, normalizedCompareSymbol, displayCandles, displayCompareCandles, compareTrack, enabledIndicators, vwap, vwapSettings, ema, effectiveLiveQuote, candles, chartDataKey, overlayRevision: setOverlayRevision, indicatorPeriods, syncLastPriceLabel, onOhlcvChange });
   const selectedFibonacci = selectedDrawingId
     ? drawings.find((drawing): drawing is FibonacciDrawing => drawing.id === selectedDrawingId && drawing.tool === "fibonacci")
     : null;
